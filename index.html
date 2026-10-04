@@ -390,14 +390,12 @@
     z-index: 1;
   }
 
-  .gallery-item .car-visual {
+  .gallery-item canvas {
     position: absolute;
     inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 3.5rem;
-    opacity: 0.15;
+    width: 100%;
+    height: 100%;
+    display: block;
   }
 
   .gallery-item h4 {
@@ -854,60 +852,40 @@
       <p>A selection from the shop floor. Every car leaves with a dyno sheet and a grin.</p>
     </div>
     <div class="gallery-grid">
-      <div class="gallery-item featured">
-        <svg class="car-visual" viewBox="0 0 200 100" style="position:absolute;inset:0;width:100%;height:100%;opacity:0.07">
-          <path d="M30 70 Q30 55 50 50 L70 35 Q90 25 130 25 L160 35 Q175 40 180 55 Q185 65 180 70 Z" fill="var(--accent)" />
-          <circle cx="60" cy="72" r="12" fill="var(--fg)" opacity="0.3"/>
-          <circle cx="155" cy="72" r="12" fill="var(--fg)" opacity="0.3"/>
-        </svg>
+      <div class="gallery-item featured" data-car="gtr">
+        <canvas></canvas>
         <div class="gallery-item-inner">
           <div class="tag">Full Build</div>
           <h4>Nissan R35 GT-R</h4>
           <div class="specs">Built VR38 &bull; Precision 6875 &bull; E85 &bull; 780whp</div>
         </div>
       </div>
-      <div class="gallery-item">
-        <div class="car-visual">
-          <svg viewBox="0 0 100 60" style="width:80px;opacity:0.5">
-            <path d="M15 40 Q15 30 25 28 L35 20 Q45 14 65 14 L80 20 Q88 24 90 32 Q92 38 90 40 Z" fill="var(--accent)" />
-          </svg>
-        </div>
+      <div class="gallery-item" data-car="m3">
+        <canvas></canvas>
         <div class="gallery-item-inner">
           <div class="tag">ECU Tune</div>
           <h4>BMW F80 M3</h4>
           <div class="specs">Stage 2 &bull; 530whp</div>
         </div>
       </div>
-      <div class="gallery-item">
-        <div class="car-visual">
-          <svg viewBox="0 0 100 60" style="width:80px;opacity:0.5">
-            <path d="M12 42 Q12 32 22 28 L32 18 Q48 12 68 12 L82 20 Q90 25 92 34 Q94 40 92 42 Z" fill="var(--accent)" />
-          </svg>
-        </div>
+      <div class="gallery-item" data-car="gr86">
+        <canvas></canvas>
         <div class="gallery-item-inner">
           <div class="tag">Turbo Kit</div>
           <h4>Toyota GR86</h4>
           <div class="specs">Garrett G25 &bull; 380whp</div>
         </div>
       </div>
-      <div class="gallery-item">
-        <div class="car-visual">
-          <svg viewBox="0 0 100 60" style="width:80px;opacity:0.5">
-            <path d="M10 40 Q10 30 20 26 L32 16 Q50 10 70 10 L84 18 Q92 23 94 32 Q96 38 94 40 Z" fill="var(--accent)" />
-          </svg>
-        </div>
+      <div class="gallery-item" data-car="gt3">
+        <canvas></canvas>
         <div class="gallery-item-inner">
           <div class="tag">Suspension</div>
           <h4>Porsche 997 GT3</h4>
           <div class="specs">KW V3 &bull; Alignment &bull; Track</div>
         </div>
       </div>
-      <div class="gallery-item">
-        <div class="car-visual">
-          <svg viewBox="0 0 100 60" style="width:80px;opacity:0.5">
-            <path d="M14 42 Q14 32 24 28 L36 18 Q50 12 70 12 L82 20 Q90 24 92 33 Q93 40 91 42 Z" fill="var(--accent)" />
-          </svg>
-        </div>
+      <div class="gallery-item" data-car="rs3">
+        <canvas></canvas>
         <div class="gallery-item-inner">
           <div class="tag">Exhaust</div>
           <h4>Audi RS3 8V</h4>
@@ -1072,8 +1050,6 @@
   document.querySelector('.menu-toggle').addEventListener('click', function() {
     document.getElementById('navLinks').classList.toggle('open');
   });
-
-  // Close mobile nav on link click
   document.querySelectorAll('.nav-links a').forEach(function(link) {
     link.addEventListener('click', function() {
       document.getElementById('navLinks').classList.remove('open');
@@ -1099,4 +1075,524 @@
       }
     });
   });
+
+  // Car gallery canvas rendering
+  (function() {
+    var cars = {
+      gtr: function(ctx, w, h) {
+        var s = Math.min(w / 500, h / 220);
+        ctx.save();
+        ctx.translate(w * 0.5, h * 0.58);
+        ctx.scale(s, s);
+        // R35 GT-R: wide, aggressive stance, quad taillights shape
+        // Body
+        ctx.beginPath();
+        ctx.moveTo(-210, 20);
+        ctx.lineTo(-200, 10);
+        ctx.lineTo(-180, -5);
+        ctx.lineTo(-150, -20);
+        ctx.quadraticCurveTo(-120, -45, -80, -55);
+        ctx.lineTo(-30, -62);
+        ctx.quadraticCurveTo(10, -65, 50, -62);
+        ctx.lineTo(100, -55);
+        ctx.quadraticCurveTo(140, -48, 170, -30);
+        ctx.lineTo(195, -15);
+        ctx.lineTo(210, -5);
+        ctx.lineTo(215, 10);
+        ctx.lineTo(215, 20);
+        ctx.lineTo(210, 30);
+        ctx.lineTo(-205, 30);
+        ctx.lineTo(-210, 20);
+        ctx.closePath();
+        ctx.fillStyle = '#c0c0c8';
+        ctx.fill();
+        ctx.strokeStyle = '#888';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        // Roof / cabin
+        ctx.beginPath();
+        ctx.moveTo(-60, -55);
+        ctx.quadraticCurveTo(-40, -85, 0, -90);
+        ctx.quadraticCurveTo(40, -85, 80, -72);
+        ctx.lineTo(120, -52);
+        ctx.lineTo(-80, -52);
+        ctx.closePath();
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fill();
+        // Windshield
+        ctx.beginPath();
+        ctx.moveTo(-55, -55);
+        ctx.lineTo(-20, -83);
+        ctx.lineTo(30, -83);
+        ctx.lineTo(55, -72);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(100,140,200,0.3)';
+        ctx.fill();
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        // Rear window
+        ctx.beginPath();
+        ctx.moveTo(65, -70);
+        ctx.lineTo(90, -62);
+        ctx.lineTo(115, -52);
+        ctx.lineTo(60, -52);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(100,140,200,0.25)';
+        ctx.fill();
+        ctx.stroke();
+        // Front bumper intakes
+        ctx.fillStyle = '#0a0a0e';
+        ctx.fillRect(-195, 5, 40, 20);
+        ctx.fillRect(-145, 10, 30, 15);
+        // Headlights
+        ctx.beginPath();
+        ctx.moveTo(-200, -5);
+        ctx.lineTo(-175, -15);
+        ctx.lineTo(-160, -10);
+        ctx.lineTo(-170, 0);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(255,255,220,0.7)';
+        ctx.fill();
+        // Tail lights (quad circles)
+        ctx.fillStyle = '#e63b2e';
+        for (var i = 0; i < 2; i++) {
+          for (var j = 0; j < 2; j++) {
+            ctx.beginPath();
+            ctx.arc(185 + j * 14, -5 + i * 14, 5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        // Side line
+        ctx.beginPath();
+        ctx.moveTo(-180, 0);
+        ctx.lineTo(190, 0);
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        // Fender flares
+        ctx.beginPath();
+        ctx.moveTo(-160, 25);
+        ctx.quadraticCurveTo(-155, 10, -130, 15);
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        // Wheels
+        drawWheel(ctx, -140, 35, 28);
+        drawWheel(ctx, 155, 35, 28);
+        // Ground shadow
+        ctx.beginPath();
+        ctx.ellipse(0, 50, 200, 10, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.fill();
+        ctx.restore();
+      },
+      m3: function(ctx, w, h) {
+        var s = Math.min(w / 400, h / 200);
+        ctx.save();
+        ctx.translate(w * 0.5, h * 0.55);
+        ctx.scale(s, s);
+        // BMW F80 M3 - sleek sedan
+        ctx.beginPath();
+        ctx.moveTo(-175, 15);
+        ctx.lineTo(-165, 5);
+        ctx.lineTo(-140, -15);
+        ctx.quadraticCurveTo(-100, -40, -50, -48);
+        ctx.lineTo(20, -52);
+        ctx.quadraticCurveTo(60, -50, 100, -40);
+        ctx.lineTo(140, -20);
+        ctx.lineTo(168, -5);
+        ctx.lineTo(175, 10);
+        ctx.lineTo(175, 22);
+        ctx.lineTo(-170, 22);
+        ctx.closePath();
+        ctx.fillStyle = '#2a4a8a';
+        ctx.fill();
+        ctx.strokeStyle = '#1a3060';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+        // Cabin
+        ctx.beginPath();
+        ctx.moveTo(-40, -48);
+        ctx.quadraticCurveTo(-20, -72, 20, -75);
+        ctx.quadraticCurveTo(55, -72, 85, -58);
+        ctx.lineTo(110, -42);
+        ctx.lineTo(-55, -42);
+        ctx.closePath();
+        ctx.fillStyle = '#0f1520';
+        ctx.fill();
+        // Windows
+        ctx.beginPath();
+        ctx.moveTo(-35, -48);
+        ctx.lineTo(-5, -70);
+        ctx.lineTo(40, -68);
+        ctx.lineTo(50, -58);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(80,120,180,0.3)';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(55, -56);
+        ctx.lineTo(80, -55);
+        ctx.lineTo(105, -42);
+        ctx.lineTo(55, -42);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(80,120,180,0.25)';
+        ctx.fill();
+        // Kidney grille
+        ctx.fillStyle = '#0a0a0e';
+        ctx.beginPath();
+        ctx.ellipse(-155, -2, 10, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(-138, -2, 10, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // Headlights (angel eyes hint)
+        ctx.beginPath();
+        ctx.arc(-160, -10, 7, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255,255,220,0.5)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,220,0.2)';
+        ctx.fill();
+        // Tail lights
+        ctx.fillStyle = '#e63b2e';
+        ctx.beginPath();
+        ctx.moveTo(160, -8);
+        ctx.lineTo(172, -5);
+        ctx.lineTo(172, 8);
+        ctx.lineTo(155, 5);
+        ctx.closePath();
+        ctx.fill();
+        // Character line
+        ctx.beginPath();
+        ctx.moveTo(-150, -5);
+        ctx.lineTo(165, -5);
+        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+        drawWheel(ctx, -110, 28, 22);
+        drawWheel(ctx, 120, 28, 22);
+        ctx.beginPath();
+        ctx.ellipse(0, 42, 160, 8, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+        ctx.fill();
+        ctx.restore();
+      },
+      gr86: function(ctx, w, h) {
+        var s = Math.min(w / 400, h / 200);
+        ctx.save();
+        ctx.translate(w * 0.5, h * 0.55);
+        ctx.scale(s, s);
+        // Toyota GR86 - low coupe
+        ctx.beginPath();
+        ctx.moveTo(-170, 12);
+        ctx.lineTo(-160, 0);
+        ctx.lineTo(-135, -18);
+        ctx.quadraticCurveTo(-95, -38, -45, -42);
+        ctx.lineTo(10, -44);
+        ctx.quadraticCurveTo(45, -44, 75, -38);
+        ctx.lineTo(120, -22);
+        ctx.lineTo(155, -8);
+        ctx.lineTo(168, 5);
+        ctx.lineTo(170, 18);
+        ctx.lineTo(-165, 18);
+        ctx.closePath();
+        ctx.fillStyle = '#d43030';
+        ctx.fill();
+        ctx.strokeStyle = '#a02020';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+        // Cabin
+        ctx.beginPath();
+        ctx.moveTo(-30, -42);
+        ctx.quadraticCurveTo(-5, -65, 30, -65);
+        ctx.quadraticCurveTo(60, -62, 85, -48);
+        ctx.lineTo(95, -38);
+        ctx.lineTo(-40, -38);
+        ctx.closePath();
+        ctx.fillStyle = '#0f0f15';
+        ctx.fill();
+        // Windshield
+        ctx.beginPath();
+        ctx.moveTo(-25, -42);
+        ctx.lineTo(10, -60);
+        ctx.lineTo(45, -58);
+        ctx.lineTo(40, -42);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(100,140,200,0.3)';
+        ctx.fill();
+        // Rear window
+        ctx.beginPath();
+        ctx.moveTo(50, -55);
+        ctx.lineTo(80, -48);
+        ctx.lineTo(90, -38);
+        ctx.lineTo(50, -38);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(100,140,200,0.25)';
+        ctx.fill();
+        // Headlights
+        ctx.fillStyle = 'rgba(255,255,220,0.6)';
+        ctx.beginPath();
+        ctx.moveTo(-158, -5);
+        ctx.lineTo(-140, -14);
+        ctx.lineTo(-125, -8);
+        ctx.lineTo(-135, 0);
+        ctx.closePath();
+        ctx.fill();
+        // Tail lights
+        ctx.fillStyle = '#e63b2e';
+        ctx.fillRect(152, -5, 14, 10);
+        // Side sill
+        ctx.beginPath();
+        ctx.moveTo(-120, 12);
+        ctx.lineTo(130, 12);
+        ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        drawWheel(ctx, -105, 24, 21);
+        drawWheel(ctx, 115, 24, 21);
+        ctx.beginPath();
+        ctx.ellipse(0, 38, 155, 7, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+        ctx.fill();
+        ctx.restore();
+      },
+      gt3: function(ctx, w, h) {
+        var s = Math.min(w / 400, h / 200);
+        ctx.save();
+        ctx.translate(w * 0.5, h * 0.55);
+        ctx.scale(s, s);
+        // Porsche 997 GT3 - round, rear-engine silhouette with wing
+        ctx.beginPath();
+        ctx.moveTo(-165, 10);
+        ctx.lineTo(-155, 0);
+        ctx.quadraticCurveTo(-130, -20, -90, -30);
+        ctx.lineTo(-40, -38);
+        ctx.quadraticCurveTo(0, -42, 30, -40);
+        ctx.quadraticCurveTo(80, -38, 120, -28);
+        ctx.lineTo(155, -12);
+        ctx.lineTo(165, 0);
+        ctx.lineTo(170, 15);
+        ctx.lineTo(-160, 15);
+        ctx.closePath();
+        ctx.fillStyle = '#e8e8e0';
+        ctx.fill();
+        ctx.strokeStyle = '#bbb';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+        // Cabin (rounded)
+        ctx.beginPath();
+        ctx.moveTo(-20, -38);
+        ctx.quadraticCurveTo(5, -62, 35, -62);
+        ctx.quadraticCurveTo(65, -58, 90, -42);
+        ctx.lineTo(95, -32);
+        ctx.lineTo(-25, -32);
+        ctx.closePath();
+        ctx.fillStyle = '#121218';
+        ctx.fill();
+        // Windshield
+        ctx.beginPath();
+        ctx.moveTo(-15, -38);
+        ctx.lineTo(15, -57);
+        ctx.lineTo(45, -55);
+        ctx.lineTo(35, -38);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(100,130,180,0.3)';
+        ctx.fill();
+        // GT3 wing
+        ctx.fillStyle = '#ccc';
+        ctx.fillRect(115, -52, 50, 4);
+        ctx.fillStyle = '#999';
+        ctx.fillRect(130, -48, 5, 18);
+        ctx.fillRect(155, -48, 5, 18);
+        // Frog-eye headlights
+        ctx.beginPath();
+        ctx.ellipse(-148, -8, 10, 8, -0.15, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,255,220,0.5)';
+        ctx.fill();
+        ctx.strokeStyle = '#aaa';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        // Tail lights
+        ctx.fillStyle = '#e63b2e';
+        ctx.beginPath();
+        ctx.ellipse(158, -3, 6, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        drawWheel(ctx, -105, 22, 22);
+        drawWheel(ctx, 118, 22, 24);
+        ctx.beginPath();
+        ctx.ellipse(0, 38, 155, 7, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.fill();
+        ctx.restore();
+      },
+      rs3: function(ctx, w, h) {
+        var s = Math.min(w / 400, h / 200);
+        ctx.save();
+        ctx.translate(w * 0.5, h * 0.55);
+        ctx.scale(s, s);
+        // Audi RS3 - sharp sedan, Singleframe grille
+        ctx.beginPath();
+        ctx.moveTo(-170, 12);
+        ctx.lineTo(-162, 0);
+        ctx.lineTo(-140, -18);
+        ctx.quadraticCurveTo(-100, -40, -45, -46);
+        ctx.lineTo(30, -50);
+        ctx.quadraticCurveTo(70, -48, 110, -35);
+        ctx.lineTo(148, -15);
+        ctx.lineTo(168, 0);
+        ctx.lineTo(172, 15);
+        ctx.lineTo(-165, 15);
+        ctx.closePath();
+        ctx.fillStyle = '#222230';
+        ctx.fill();
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+        // Cabin
+        ctx.beginPath();
+        ctx.moveTo(-30, -46);
+        ctx.quadraticCurveTo(-5, -72, 30, -73);
+        ctx.quadraticCurveTo(65, -68, 95, -52);
+        ctx.lineTo(108, -40);
+        ctx.lineTo(-40, -40);
+        ctx.closePath();
+        ctx.fillStyle = '#0a0a12';
+        ctx.fill();
+        // Windows
+        ctx.beginPath();
+        ctx.moveTo(-25, -46);
+        ctx.lineTo(10, -67);
+        ctx.lineTo(45, -65);
+        ctx.lineTo(40, -46);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(80,110,170,0.3)';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(50, -62);
+        ctx.lineTo(85, -52);
+        ctx.lineTo(100, -40);
+        ctx.lineTo(50, -40);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(80,110,170,0.25)';
+        ctx.fill();
+        // Singleframe grille (hexagonal)
+        ctx.beginPath();
+        ctx.moveTo(-150, -12);
+        ctx.lineTo(-145, -16);
+        ctx.lineTo(-130, -16);
+        ctx.lineTo(-125, -12);
+        ctx.lineTo(-130, 2);
+        ctx.lineTo(-145, 2);
+        ctx.closePath();
+        ctx.fillStyle = '#111';
+        ctx.fill();
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        // Matrix LED headlights
+        ctx.fillStyle = 'rgba(255,255,240,0.6)';
+        ctx.beginPath();
+        ctx.moveTo(-158, -8);
+        ctx.lineTo(-148, -16);
+        ctx.lineTo(-135, -14);
+        ctx.lineTo(-140, -4);
+        ctx.closePath();
+        ctx.fill();
+        // DRL strip
+        ctx.strokeStyle = 'rgba(255,255,220,0.4)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(-156, -6);
+        ctx.lineTo(-140, -12);
+        ctx.stroke();
+        // Tail lights (horizontal strip)
+        ctx.fillStyle = '#e63b2e';
+        ctx.fillRect(148, -8, 18, 5);
+        ctx.fillRect(148, 0, 18, 5);
+        // Side blade
+        ctx.beginPath();
+        ctx.moveTo(-100, -2);
+        ctx.lineTo(150, -2);
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+        drawWheel(ctx, -108, 22, 22);
+        drawWheel(ctx, 118, 22, 22);
+        ctx.beginPath();
+        ctx.ellipse(0, 38, 158, 7, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+        ctx.fill();
+        ctx.restore();
+      }
+    };
+
+    function drawWheel(ctx, x, y, r) {
+      // Tire
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fill();
+      // Rim
+      ctx.beginPath();
+      ctx.arc(x, y, r * 0.68, 0, Math.PI * 2);
+      ctx.fillStyle = '#333';
+      ctx.fill();
+      // Spokes
+      ctx.strokeStyle = '#555';
+      ctx.lineWidth = 1.5;
+      for (var i = 0; i < 5; i++) {
+        var a = (Math.PI * 2 / 5) * i - Math.PI / 2;
+        ctx.beginPath();
+        ctx.moveTo(x + Math.cos(a) * r * 0.2, y + Math.sin(a) * r * 0.2);
+        ctx.lineTo(x + Math.cos(a) * r * 0.62, y + Math.sin(a) * r * 0.62);
+        ctx.stroke();
+      }
+      // Center cap
+      ctx.beginPath();
+      ctx.arc(x, y, r * 0.18, 0, Math.PI * 2);
+      ctx.fillStyle = '#444';
+      ctx.fill();
+      // Rim edge highlight
+      ctx.beginPath();
+      ctx.arc(x, y, r * 0.68, -Math.PI * 0.8, -Math.PI * 0.2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    function renderCar(item) {
+      var canvas = item.querySelector('canvas');
+      var key = item.getAttribute('data-car');
+      if (!canvas || !key || !cars[key]) return;
+      var rect = item.getBoundingClientRect();
+      var dpr = window.devicePixelRatio || 1;
+      var w = rect.width;
+      var h = rect.height;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      var ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      // Subtle gradient background
+      var grad = ctx.createRadialGradient(w * 0.35, h * 0.4, 0, w * 0.5, h * 0.5, w * 0.7);
+      grad.addColorStop(0, 'rgba(230,59,46,0.06)');
+      grad.addColorStop(1, 'transparent');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+      cars[key](ctx, w, h);
+    }
+
+    function renderAll() {
+      document.querySelectorAll('.gallery-item[data-car]').forEach(renderCar);
+    }
+
+    renderAll();
+    var resizeTimer;
+    window.addEventListener('resize', function() {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(renderAll, 150);
+    });
+  })();
 </script>
