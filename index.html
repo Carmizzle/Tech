@@ -1,0 +1,1102 @@
+<title>Apex Tuning Co.</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap">
+
+<style>
+  /* Layout: full-width sections with centered content columns, bold automotive presence */
+  :root {
+    --bg: #0a0a0c;
+    --bg-surface: #121215;
+    --bg-card: #1a1a1f;
+    --fg: #e8e6e3;
+    --fg-muted: #8a8885;
+    --accent: #e63b2e;
+    --accent-glow: rgba(230, 59, 46, 0.15);
+    --accent-hover: #ff4d3f;
+    --border: rgba(255,255,255,0.06);
+    --font-display: 'Outfit', sans-serif;
+    --font-mono: 'Space Mono', monospace;
+    color-scheme: dark;
+  }
+
+  /* Single-theme dark design — committed to the automotive dark aesthetic */
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-display);
+    font-weight: 400;
+    line-height: 1.6;
+    padding-inline: 0;
+    overflow-x: hidden;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding-inline: 20px;
+  }
+
+  /* === NAV === */
+  nav {
+    position: sticky;
+    top: env(safe-area-inset-top, 0px);
+    z-index: 100;
+    background: rgba(10, 10, 12, 0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 20px;
+  }
+
+  .nav-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+  }
+
+  .logo {
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: 1.25rem;
+    letter-spacing: -0.02em;
+    color: var(--fg);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .logo-mark {
+    width: 32px;
+    height: 32px;
+    background: var(--accent);
+    border-radius: 6px;
+    display: grid;
+    place-items: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.05em;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 32px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .nav-links a {
+    color: var(--fg-muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    transition: color 0.2s;
+  }
+
+  .nav-links a:hover { color: var(--accent); }
+
+  .nav-cta {
+    background: var(--accent);
+    color: #fff !important;
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-weight: 600;
+    transition: background 0.2s;
+  }
+
+  .nav-cta:hover { background: var(--accent-hover) !important; }
+
+  .menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--fg);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 4px;
+  }
+
+  /* === HERO === */
+  .hero {
+    padding: 100px 20px 80px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -40%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 800px;
+    height: 800px;
+    background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    position: relative;
+  }
+
+  .hero h1 {
+    font-size: clamp(2.8rem, 7vw, 5.5rem);
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    margin: 0 auto 24px;
+    max-width: 900px;
+    position: relative;
+    text-wrap: balance;
+  }
+
+  .hero h1 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+
+  .hero-sub {
+    font-size: 1.15rem;
+    color: var(--fg-muted);
+    max-width: 560px;
+    margin: 0 auto 40px;
+    line-height: 1.7;
+    position: relative;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+    position: relative;
+  }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--accent);
+    color: #fff;
+    padding: 14px 32px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: background 0.2s, transform 0.15s;
+    border: none;
+    cursor: pointer;
+  }
+
+  .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    color: var(--fg);
+    padding: 14px 32px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: 1px solid rgba(255,255,255,0.15);
+    transition: border-color 0.2s, transform 0.15s;
+    cursor: pointer;
+  }
+
+  .btn-secondary:hover { border-color: var(--accent); transform: translateY(-1px); }
+
+  /* === STATS === */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stat {
+    background: var(--bg-surface);
+    padding: 32px 20px;
+    text-align: center;
+  }
+
+  .stat-num {
+    font-family: var(--font-mono);
+    font-size: clamp(1.8rem, 3vw, 2.5rem);
+    font-weight: 700;
+    color: var(--fg);
+    line-height: 1;
+  }
+
+  .stat-num span { color: var(--accent); }
+
+  .stat-label {
+    font-size: 0.78rem;
+    color: var(--fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 8px;
+  }
+
+  /* === SECTIONS === */
+  section {
+    padding: 80px 20px;
+  }
+
+  .section-header {
+    text-align: center;
+    margin-bottom: 56px;
+  }
+
+  .section-tag {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .section-header h2 {
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+
+  .section-header p {
+    color: var(--fg-muted);
+    max-width: 520px;
+    margin: 0 auto;
+    font-size: 1.05rem;
+  }
+
+  /* === SERVICES === */
+  .services-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .service-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 36px 28px;
+    transition: border-color 0.25s, transform 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .service-card:hover {
+    border-color: rgba(230, 59, 46, 0.3);
+    transform: translateY(-3px);
+  }
+
+  .service-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--accent);
+    opacity: 0;
+    transition: opacity 0.25s;
+  }
+
+  .service-card:hover::after { opacity: 1; }
+
+  .service-icon {
+    width: 48px;
+    height: 48px;
+    background: var(--accent-glow);
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    margin-bottom: 20px;
+    font-size: 1.25rem;
+  }
+
+  .service-card h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin: 0 0 10px;
+    letter-spacing: -0.01em;
+  }
+
+  .service-card p {
+    color: var(--fg-muted);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    margin: 0 0 16px;
+  }
+
+  .service-price {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--accent);
+    letter-spacing: 0.02em;
+  }
+
+  /* === GALLERY === */
+  .gallery-section { background: var(--bg-surface); }
+
+  .gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .gallery-item {
+    aspect-ratio: 4/3;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+  }
+
+  .gallery-item-inner {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 20px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .gallery-item .car-visual {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3.5rem;
+    opacity: 0.15;
+  }
+
+  .gallery-item h4 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0 0 4px;
+  }
+
+  .gallery-item .tag {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .gallery-item .specs {
+    font-size: 0.78rem;
+    color: var(--fg-muted);
+    margin-top: 6px;
+  }
+
+  .gallery-item.featured {
+    grid-column: span 2;
+    grid-row: span 2;
+  }
+
+  /* === PROCESS === */
+  .process-steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 32px;
+    max-width: 1000px;
+    margin: 0 auto;
+    counter-reset: step;
+  }
+
+  .step {
+    position: relative;
+    padding-left: 0;
+  }
+
+  .step::before {
+    counter-increment: step;
+    content: counter(step, decimal-leading-zero);
+    font-family: var(--font-mono);
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--accent);
+    opacity: 0.25;
+    line-height: 1;
+    display: block;
+    margin-bottom: 16px;
+  }
+
+  .step h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0 0 8px;
+  }
+
+  .step p {
+    color: var(--fg-muted);
+    font-size: 0.88rem;
+    line-height: 1.65;
+    margin: 0;
+  }
+
+  /* === TESTIMONIALS === */
+  .testimonials-section { background: var(--bg-surface); }
+
+  .testimonials-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .testimonial {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+  }
+
+  .testimonial-stars {
+    color: var(--accent);
+    font-size: 0.85rem;
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+  }
+
+  .testimonial blockquote {
+    margin: 0 0 20px;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: var(--fg);
+    font-style: italic;
+  }
+
+  .testimonial-author {
+    font-size: 0.82rem;
+  }
+
+  .testimonial-author strong {
+    display: block;
+    font-weight: 600;
+    color: var(--fg);
+  }
+
+  .testimonial-author span {
+    color: var(--fg-muted);
+    font-size: 0.78rem;
+  }
+
+  /* === CONTACT === */
+  .contact-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    max-width: 1000px;
+    margin: 0 auto;
+    align-items: start;
+  }
+
+  .contact-info h3 {
+    font-size: 1.8rem;
+    font-weight: 800;
+    margin: 0 0 16px;
+    letter-spacing: -0.02em;
+  }
+
+  .contact-info p {
+    color: var(--fg-muted);
+    margin: 0 0 32px;
+    line-height: 1.7;
+  }
+
+  .contact-detail {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    font-size: 0.92rem;
+  }
+
+  .contact-detail .icon-circle {
+    width: 40px;
+    height: 40px;
+    background: var(--accent-glow);
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    font-size: 1rem;
+  }
+
+  .contact-detail span {
+    color: var(--fg-muted);
+  }
+
+  .contact-form {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 36px;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 0;
+  }
+
+  .form-group.full { grid-column: 1 / -1; }
+
+  .contact-form label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .contact-form input,
+  .contact-form select,
+  .contact-form textarea {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    color: var(--fg);
+    font-family: var(--font-display);
+    font-size: 0.9rem;
+    transition: border-color 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .contact-form input:focus,
+  .contact-form select:focus,
+  .contact-form textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .contact-form textarea {
+    resize: vertical;
+    min-height: 100px;
+  }
+
+  .contact-form select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238a8885' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 36px;
+  }
+
+  .contact-form select option {
+    background: var(--bg-card);
+    color: var(--fg);
+  }
+
+  .submit-btn {
+    width: 100%;
+    margin-top: 8px;
+  }
+
+  /* === FOOTER === */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 48px 20px;
+  }
+
+  .footer-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+
+  .footer-copy {
+    font-size: 0.82rem;
+    color: var(--fg-muted);
+  }
+
+  .footer-links {
+    display: flex;
+    gap: 24px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .footer-links a {
+    color: var(--fg-muted);
+    text-decoration: none;
+    font-size: 0.82rem;
+    transition: color 0.2s;
+  }
+
+  .footer-links a:hover { color: var(--accent); }
+
+  /* === TOAST === */
+  .toast {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--accent);
+    color: #fff;
+    padding: 14px 28px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    z-index: 200;
+    opacity: 0;
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s;
+    pointer-events: none;
+  }
+
+  .toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+
+  /* === RESPONSIVE === */
+  @media (max-width: 768px) {
+    .nav-links { display: none; }
+    .nav-links.open {
+      display: flex;
+      flex-direction: column;
+      position: absolute;
+      top: 64px;
+      left: 0;
+      right: 0;
+      background: rgba(10, 10, 12, 0.97);
+      padding: 20px;
+      gap: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .menu-toggle { display: block; }
+
+    .hero { padding: 60px 20px 50px; }
+
+    .stats-bar { grid-template-columns: repeat(2, 1fr); }
+
+    .gallery-grid { grid-template-columns: 1fr 1fr; }
+    .gallery-item.featured { grid-column: span 2; grid-row: span 1; }
+
+    .contact-grid { grid-template-columns: 1fr; gap: 32px; }
+    .form-row { grid-template-columns: 1fr; }
+
+    .footer-inner { flex-direction: column; text-align: center; }
+  }
+
+  @media (max-width: 480px) {
+    .stats-bar { grid-template-columns: 1fr 1fr; }
+    .gallery-grid { grid-template-columns: 1fr; }
+    .gallery-item.featured { grid-column: span 1; }
+  }
+
+  /* === FOCUS === */
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
+  }
+</style>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <a href="#" class="logo">
+      <div class="logo-mark">AT</div>
+      Apex Tuning
+    </a>
+    <button class="menu-toggle" aria-label="Toggle menu">&#9776;</button>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="#services">Services</a></li>
+      <li><a href="#gallery">Builds</a></li>
+      <li><a href="#process">Process</a></li>
+      <li><a href="#reviews">Reviews</a></li>
+      <li><a href="#contact" class="nav-cta">Book Now</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-eyebrow">Performance Engineering Since 2012</div>
+  <h1>Precision Tuning for <em>Serious Drivers</em></h1>
+  <p class="hero-sub">ECU calibration, forced induction builds, and chassis development — engineered on the dyno and proven on the track.</p>
+  <div class="hero-actions">
+    <a href="#contact" class="btn-primary">Book a Consultation</a>
+    <a href="#gallery" class="btn-secondary">View Our Builds</a>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats-bar">
+  <div class="stat">
+    <div class="stat-num">2,400<span>+</span></div>
+    <div class="stat-label">Cars Tuned</div>
+  </div>
+  <div class="stat">
+    <div class="stat-num">12</div>
+    <div class="stat-label">Years Experience</div>
+  </div>
+  <div class="stat">
+    <div class="stat-num">850<span>hp</span></div>
+    <div class="stat-label">Max Build Output</div>
+  </div>
+  <div class="stat">
+    <div class="stat-num">98<span>%</span></div>
+    <div class="stat-label">Client Retention</div>
+  </div>
+</div>
+
+<!-- SERVICES -->
+<section id="services">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">What We Do</div>
+      <h2>Performance Services</h2>
+      <p>From bolt-on tunes to full motor builds — every job is dyno-verified and street-proven.</p>
+    </div>
+    <div class="services-grid">
+      <div class="service-card">
+        <div class="service-icon">&#9881;</div>
+        <h3>ECU Remapping</h3>
+        <p>Custom calibration for naturally aspirated and forced induction engines. OBD flash and bench tuning for most European, Japanese, and domestic platforms.</p>
+        <div class="service-price">From $450</div>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">&#9889;</div>
+        <h3>Turbo &amp; Supercharger Kits</h3>
+        <p>Full forced induction packages — from turbo upgrades on factory boosted cars to custom single and twin turbo builds on NA platforms.</p>
+        <div class="service-price">From $3,200</div>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">&#8982;</div>
+        <h3>Dyno Tuning</h3>
+        <p>In-house Dynapack hub dyno for repeatable, accurate pulls. We tune for peak power, driveability, and reliability — not just big numbers.</p>
+        <div class="service-price">From $350 / session</div>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">&#9670;</div>
+        <h3>Suspension &amp; Handling</h3>
+        <p>Coilover setups, corner balancing, anti-roll bars, and alignment specs tailored to your driving style — whether it's daily, track, or drift.</p>
+        <div class="service-price">From $800</div>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">&#9711;</div>
+        <h3>Exhaust Fabrication</h3>
+        <p>Custom stainless and titanium exhaust systems. Mandrel-bent, TIG-welded in-house. Headers, downpipes, cat-backs, and full turbo-back systems.</p>
+        <div class="service-price">From $600</div>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">&#9733;</div>
+        <h3>Full Builds</h3>
+        <p>Complete engine builds and swaps. Forged internals, built transmissions, fueling upgrades, and full wiring — from 400hp daily drivers to 850hp drag setups.</p>
+        <div class="service-price">From $8,500</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- GALLERY -->
+<section id="gallery" class="gallery-section">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Recent Work</div>
+      <h2>Featured Builds</h2>
+      <p>A selection from the shop floor. Every car leaves with a dyno sheet and a grin.</p>
+    </div>
+    <div class="gallery-grid">
+      <div class="gallery-item featured">
+        <svg class="car-visual" viewBox="0 0 200 100" style="position:absolute;inset:0;width:100%;height:100%;opacity:0.07">
+          <path d="M30 70 Q30 55 50 50 L70 35 Q90 25 130 25 L160 35 Q175 40 180 55 Q185 65 180 70 Z" fill="var(--accent)" />
+          <circle cx="60" cy="72" r="12" fill="var(--fg)" opacity="0.3"/>
+          <circle cx="155" cy="72" r="12" fill="var(--fg)" opacity="0.3"/>
+        </svg>
+        <div class="gallery-item-inner">
+          <div class="tag">Full Build</div>
+          <h4>Nissan R35 GT-R</h4>
+          <div class="specs">Built VR38 &bull; Precision 6875 &bull; E85 &bull; 780whp</div>
+        </div>
+      </div>
+      <div class="gallery-item">
+        <div class="car-visual">
+          <svg viewBox="0 0 100 60" style="width:80px;opacity:0.5">
+            <path d="M15 40 Q15 30 25 28 L35 20 Q45 14 65 14 L80 20 Q88 24 90 32 Q92 38 90 40 Z" fill="var(--accent)" />
+          </svg>
+        </div>
+        <div class="gallery-item-inner">
+          <div class="tag">ECU Tune</div>
+          <h4>BMW F80 M3</h4>
+          <div class="specs">Stage 2 &bull; 530whp</div>
+        </div>
+      </div>
+      <div class="gallery-item">
+        <div class="car-visual">
+          <svg viewBox="0 0 100 60" style="width:80px;opacity:0.5">
+            <path d="M12 42 Q12 32 22 28 L32 18 Q48 12 68 12 L82 20 Q90 25 92 34 Q94 40 92 42 Z" fill="var(--accent)" />
+          </svg>
+        </div>
+        <div class="gallery-item-inner">
+          <div class="tag">Turbo Kit</div>
+          <h4>Toyota GR86</h4>
+          <div class="specs">Garrett G25 &bull; 380whp</div>
+        </div>
+      </div>
+      <div class="gallery-item">
+        <div class="car-visual">
+          <svg viewBox="0 0 100 60" style="width:80px;opacity:0.5">
+            <path d="M10 40 Q10 30 20 26 L32 16 Q50 10 70 10 L84 18 Q92 23 94 32 Q96 38 94 40 Z" fill="var(--accent)" />
+          </svg>
+        </div>
+        <div class="gallery-item-inner">
+          <div class="tag">Suspension</div>
+          <h4>Porsche 997 GT3</h4>
+          <div class="specs">KW V3 &bull; Alignment &bull; Track</div>
+        </div>
+      </div>
+      <div class="gallery-item">
+        <div class="car-visual">
+          <svg viewBox="0 0 100 60" style="width:80px;opacity:0.5">
+            <path d="M14 42 Q14 32 24 28 L36 18 Q50 12 70 12 L82 20 Q90 24 92 33 Q93 40 91 42 Z" fill="var(--accent)" />
+          </svg>
+        </div>
+        <div class="gallery-item-inner">
+          <div class="tag">Exhaust</div>
+          <h4>Audi RS3 8V</h4>
+          <div class="specs">Custom Downpipe &bull; Valved</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROCESS -->
+<section id="process">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">How It Works</div>
+      <h2>Our Process</h2>
+      <p>Every build follows the same discipline — from consultation to final sign-off.</p>
+    </div>
+    <div class="process-steps">
+      <div class="step">
+        <h3>Consultation</h3>
+        <p>We discuss your goals, budget, and timeline. Whether it's a daily driver or a track weapon, the build plan starts with what you actually need.</p>
+      </div>
+      <div class="step">
+        <h3>Baseline &amp; Diagnosis</h3>
+        <p>Dyno baseline pull, full diagnostic scan, and inspection. We document exactly where the car is before touching anything.</p>
+      </div>
+      <div class="step">
+        <h3>Build &amp; Calibrate</h3>
+        <p>Parts go on, the car hits the dyno, and the tune is developed through dozens of iterative pulls. We chase driveability as hard as peak power.</p>
+      </div>
+      <div class="step">
+        <h3>Delivery &amp; Support</h3>
+        <p>You get a dyno sheet, a detailed build summary, and ongoing support. We stand behind every tune and every build, period.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section id="reviews" class="testimonials-section">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Client Reviews</div>
+      <h2>What Drivers Say</h2>
+    </div>
+    <div class="testimonials-grid">
+      <div class="testimonial">
+        <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <blockquote>"Had my EVO X tuned here after a botched tune elsewhere. They re-baselined it, found a boost leak, and built a proper map. Car pulls harder and smoother than it ever has. These guys actually know what they're doing."</blockquote>
+        <div class="testimonial-author">
+          <strong>Mike R.</strong>
+          <span>Mitsubishi Evo X &bull; Stage 2+ Tune</span>
+        </div>
+      </div>
+      <div class="testimonial">
+        <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <blockquote>"Full turbo kit on my BRZ. They handled the fabrication, wiring, fueling, and tune in-house. 360whp on pump gas, daily driven for two years with zero issues. Can't recommend them enough."</blockquote>
+        <div class="testimonial-author">
+          <strong>Sarah K.</strong>
+          <span>Subaru BRZ &bull; Turbo Build</span>
+        </div>
+      </div>
+      <div class="testimonial">
+        <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <blockquote>"Brought my GT3 in for corner balancing and a suspension setup before a track weekend. The car was on rails at Laguna Seca — four seconds off my PB. Worth every penny."</blockquote>
+        <div class="testimonial-author">
+          <strong>James T.</strong>
+          <span>Porsche 997 GT3 &bull; Suspension Setup</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Get Started</div>
+      <h2>Book Your Build</h2>
+      <p>Tell us about your car and your goals. We'll get back to you within 24 hours.</p>
+    </div>
+    <div class="contact-grid">
+      <div class="contact-info">
+        <h3>Let's Talk<br>Performance</h3>
+        <p>Walk-ins welcome for consultations. For builds and dyno time, we recommend booking ahead — our schedule fills fast.</p>
+        <div class="contact-detail">
+          <div class="icon-circle">&#9742;</div>
+          <span>(555) 482-TUNE</span>
+        </div>
+        <div class="contact-detail">
+          <div class="icon-circle">&#9993;</div>
+          <span>builds@apextuning.co</span>
+        </div>
+        <div class="contact-detail">
+          <div class="icon-circle">&#9873;</div>
+          <span>1247 Industrial Blvd, Unit 8<br>Carson, CA 90745</span>
+        </div>
+        <div class="contact-detail" style="margin-top: 24px">
+          <div class="icon-circle">&#9201;</div>
+          <span>Mon–Fri 8am–6pm &bull; Sat 9am–3pm</span>
+        </div>
+      </div>
+      <form class="contact-form" id="contactForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="name">Your Name</label>
+            <input type="text" id="name" placeholder="John Doe" required>
+          </div>
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" placeholder="john@example.com" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="vehicle">Vehicle</label>
+            <input type="text" id="vehicle" placeholder="2020 BMW M3">
+          </div>
+          <div class="form-group">
+            <label for="service">Service</label>
+            <select id="service">
+              <option value="">Select a service</option>
+              <option>ECU Remapping</option>
+              <option>Turbo / Supercharger Kit</option>
+              <option>Dyno Tuning</option>
+              <option>Suspension &amp; Handling</option>
+              <option>Exhaust Fabrication</option>
+              <option>Full Build</option>
+              <option>Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom: 16px">
+          <label for="details">Details</label>
+          <textarea id="details" placeholder="Tell us about your goals — power target, intended use, timeline, budget range..."></textarea>
+        </div>
+        <button type="submit" class="btn-primary submit-btn">Send Inquiry</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-copy">&copy; 2024 Apex Tuning Co. All rights reserved.</div>
+    <ul class="footer-links">
+      <li><a href="#services">Services</a></li>
+      <li><a href="#gallery">Builds</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+  </div>
+</footer>
+
+<!-- TOAST -->
+<div class="toast" id="toast">Inquiry sent — we'll be in touch!</div>
+
+<script>
+  // Mobile nav
+  document.querySelector('.menu-toggle').addEventListener('click', function() {
+    document.getElementById('navLinks').classList.toggle('open');
+  });
+
+  // Close mobile nav on link click
+  document.querySelectorAll('.nav-links a').forEach(function(link) {
+    link.addEventListener('click', function() {
+      document.getElementById('navLinks').classList.remove('open');
+    });
+  });
+
+  // Form
+  document.getElementById('contactForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var toast = document.getElementById('toast');
+    toast.classList.add('show');
+    this.reset();
+    setTimeout(function() { toast.classList.remove('show'); }, 3000);
+  });
+
+  // Smooth scroll
+  document.querySelectorAll('a[href^="#"]').forEach(function(a) {
+    a.addEventListener('click', function(e) {
+      var target = document.querySelector(this.getAttribute('href'));
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+</script>
