@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import threading
 import webbrowser
 from functools import partial
@@ -27,10 +28,16 @@ class _Handler(SimpleHTTPRequestHandler):
         pass
 
 
+class _Server(ThreadingHTTPServer):
+    # On Windows, SO_REUSEADDR lets a second dashboard share a busy port, so the browser can land
+    # on an old one still running (e.g. the newsroom). Refuse instead, like Mac and Linux do.
+    allow_reuse_address = os.name != "nt"
+
+
 def serve(port: int = 8765, open_browser: bool = True, page: str = "loop.html") -> ThreadingHTTPServer:
     handler = type("Handler", (_Handler,), {"page": page})
     try:
-        server = ThreadingHTTPServer(("127.0.0.1", port), partial(handler, directory=str(ROOT)))
+        server = _Server(("127.0.0.1", port), partial(handler, directory=str(ROOT)))
     except OSError:
         raise SystemExit(f"  port {port} is busy. Stop the other dashboard (Ctrl+C) or add --port {port + 1}")
     threading.Thread(target=server.serve_forever, daemon=True).start()
