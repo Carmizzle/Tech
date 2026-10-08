@@ -35,9 +35,11 @@ buyers have been in control for the last 30 seconds".
 SETTINGS = {
     "min_conf": 0.85,  # only act when Jev is at least this sure
     "min_hold": 15,    # seconds to sit still after a trade (no flip-flopping)
+    "exit_conf": 0.60, # close a position (go flat) when Jev leans the other way at least this much
 }
 
-DESCRIPTION = f"trade only at ≥{SETTINGS['min_conf']:.0%} conviction · ≥{SETTINGS['min_hold']}s between flips"
+DESCRIPTION = (f"trade only at ≥{SETTINGS['min_conf']:.0%} conviction · exit at ≥{SETTINGS['exit_conf']:.0%} the other way · "
+               f"≥{SETTINGS['min_hold']}s between flips")
 
 
 def decide(call: dict, market: dict, position: int, seconds_since_trade: float) -> str:
@@ -50,6 +52,11 @@ def decide(call: dict, market: dict, position: int, seconds_since_trade: float) 
     if (bias == "long" and want < 0) or (bias == "short" and want > 0):
         return f"hold · against Claude's {bias} bias"
     if call["conf"] < SETTINGS["min_conf"]:
+        # Not sure enough to flip, but sure enough to get out: leaving needs less proof than entering.
+        if position and want != position and call["conf"] >= SETTINGS["exit_conf"]:
+            if seconds_since_trade < SETTINGS["min_hold"]:
+                return "hold · too soon to exit"
+            return "flat"
         return "hold · low conviction"
     if want == position:
         return "hold · already " + ("long" if want > 0 else "short")
