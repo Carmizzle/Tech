@@ -33,7 +33,7 @@ from concurrent.futures import ThreadPoolExecutor
 import websocket
 
 from . import hl
-from .core import RESULTS, console, header
+from .core import RESULTS, console, header, replace_file
 from . import strategy
 from .judges import JevJudge, JudgeError
 from .server import serve
@@ -181,6 +181,10 @@ def run_loop(coin: str, pace_s: float, minutes: float, port: int, open_browser: 
         jev = JevJudge()
     except JudgeError as exc:
         raise SystemExit(f"  Jev key missing: {exc}. Add AI_GATEWAY_API_KEY to .env first.")
+    call_timeout = 5.0
+    if jev.chat:  # free mode: a general model answers in seconds, not milliseconds
+        pace_s, late_ms, call_timeout = max(pace_s, 3.0), max(late_ms, 8000), 15.0
+        console.print(f"  [#f5b53d]free mode[/]: {jev.model} stands in for Jev · one call every {pace_s:g}s or slower")
 
     market = Market(coin)
     market.start()
@@ -238,7 +242,7 @@ def run_loop(coin: str, pace_s: float, minutes: float, port: int, open_browser: 
             }
         tmp = out.with_suffix(".tmp")
         tmp.write_text(json.dumps(payload))
-        os.replace(tmp, out)
+        replace_file(tmp, out)
 
     def decide(rec: dict, now: dict) -> str:
         """Hand Jev's call to strategy.decide(), then turn its answer into a (paper) order. Runs under the lock."""
@@ -273,7 +277,7 @@ def run_loop(coin: str, pace_s: float, minutes: float, port: int, open_browser: 
         snap = market.snapshot()
         rec = {"block": seq, "t_ask": time.time(), "state": snap["state"]}
         try:
-            ans, meta = jev.ask(snap["state"], QUESTIONS, timeout=5.0, retries=0)
+            ans, meta = jev.ask(snap["state"], QUESTIONS, timeout=call_timeout, retries=0)
             side = ans["side"]["choice"]
             rec.update(side=side, conf=round(ans["side"]["probs"][side], 3), ms=meta["latency_ms"],
                        status="ok" if meta["latency_ms"] <= late_ms else "late")

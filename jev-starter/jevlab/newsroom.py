@@ -25,7 +25,7 @@ import time
 import pandas as pd
 
 from . import hl
-from .core import RESULTS, console, header
+from .core import RESULTS, console, header, replace_file
 from .judges import JevJudge, JudgeError
 from .news import COINS, QUESTIONS, fetch_headlines, judge_call
 from .server import serve
@@ -86,7 +86,7 @@ def run_newsroom(hours: float, every: float, port: int, open_browser: bool) -> N
                    "feed": feed[-300:]}
         tmp = out.with_suffix(".tmp")
         tmp.write_text(json.dumps(payload, default=str))
-        os.replace(tmp, out)
+        replace_file(tmp, out)
 
     write("running")
     serve(port, open_browser, page="newsroom.html")

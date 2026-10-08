@@ -36,7 +36,7 @@ from pathlib import Path
 from . import strategy
 from .brain import Brain
 from .bybit import BybitError, BybitMarket, BybitTrader, bybit_mode
-from .core import RESULTS, console, header
+from .core import RESULTS, console, header, replace_file
 from .judges import JevJudge, JudgeError
 from .loop import QUESTIONS
 from .server import serve
@@ -222,7 +222,7 @@ def run_bot(coin: str, pace_s: float, minutes: float, port: int, open_browser: b
             }
         tmp = out.with_suffix(".tmp")
         tmp.write_text(json.dumps(payload, default=str))
-        os.replace(tmp, out)
+        replace_file(tmp, out)
 
     def decide(rec: dict, now: dict) -> str:
         """Jev's call + Claude's bias -> strategy.decide() -> a post-only limit order. Runs under the lock."""
