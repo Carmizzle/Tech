@@ -31,9 +31,10 @@ and ask it to rewrite decide(), e.g. "only buy when Jev is 90%+ sure AND
 buyers have been in control for the last 30 seconds".
 """
 
-# The defaults are the three rules from the video.
+# The video's defaults were 85% and 15s. Loosened for free mode, where a slower stand-in
+# model rarely reaches 85%: set min_conf back to 0.85 when you switch to the real Jev.
 SETTINGS = {
-    "min_conf": 0.85,  # only act when Jev is at least this sure
+    "min_conf": 0.75,  # only act when Jev is at least this sure
     "min_hold": 15,    # seconds to sit still after a trade (no flip-flopping)
 }
 

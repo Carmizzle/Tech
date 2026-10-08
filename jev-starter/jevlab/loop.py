@@ -183,7 +183,7 @@ def run_loop(coin: str, pace_s: float, minutes: float, port: int, open_browser: 
         raise SystemExit(f"  Jev key missing: {exc}. Add AI_GATEWAY_API_KEY to .env first.")
     call_timeout = 5.0
     if jev.chat:  # free mode: a general model answers in seconds, not milliseconds
-        pace_s, late_ms, call_timeout = max(pace_s, 13.0), max(late_ms, 10000), 30.0
+        pace_s, late_ms, call_timeout = max(pace_s, 13.0), max(late_ms, 20000), 30.0
         console.print(f"  [#f5b53d]free mode[/]: {jev.model} stands in for Jev · one call every {pace_s:g}s or slower")
 
     market = Market(coin)
