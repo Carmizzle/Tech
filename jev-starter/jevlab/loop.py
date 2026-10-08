@@ -183,7 +183,7 @@ def run_loop(coin: str, pace_s: float, minutes: float, port: int, open_browser: 
         raise SystemExit(f"  Jev key missing: {exc}. Add AI_GATEWAY_API_KEY to .env first.")
     call_timeout = 5.0
     if jev.chat:  # free mode: a general model answers in seconds, not milliseconds
-        pace_s, late_ms, call_timeout = max(pace_s, 3.0), max(late_ms, 8000), 15.0
+        pace_s, late_ms, call_timeout = max(pace_s, 13.0), max(late_ms, 10000), 30.0
         console.print(f"  [#f5b53d]free mode[/]: {jev.model} stands in for Jev · one call every {pace_s:g}s or slower")
 
     market = Market(coin)
@@ -291,7 +291,7 @@ def run_loop(coin: str, pace_s: float, minutes: float, port: int, open_browser: 
             if rec["ms"]:
                 latencies.append(rec["ms"])
             if rec["status"] == "throttled":  # back off hard on a 429, creep back on good answers
-                st["interval"], st["streak"] = min(4.0, st["interval"] * 1.6), 0
+                st["interval"], st["streak"] = min(max(4.0, 2 * pace_s), st["interval"] * 1.6), 0
             elif rec["status"] == "ok":
                 st["streak"] += 1
                 if st["streak"] >= 3:

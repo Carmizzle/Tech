@@ -56,6 +56,9 @@ def run_newsroom(hours: float, every: float, port: int, open_browser: bool) -> N
         jev = JevJudge()
     except JudgeError as exc:
         raise SystemExit(f"  Jev key missing: {exc}. Add AI_GATEWAY_API_KEY to .env first.")
+    if jev.chat:  # free mode: the free tier allows about 5 calls a minute
+        every = max(every, 13.0)
+        console.print(f"  [#f5b53d]free mode[/]: {jev.model} stands in for Jev · one headline every {every:g}s")
 
     def load_items() -> list[dict]:
         now = pd.Timestamp.now(tz="UTC")
@@ -103,7 +106,7 @@ def run_newsroom(hours: float, every: float, port: int, open_browser: bool) -> N
                 write("running")  # the headline hits the wire before Jev has answered
                 state = {"headline": it["headline"], "summary": it["summary"], "source": it["source"]}
                 try:
-                    ans, meta = jev.ask(state, QUESTIONS, timeout=10.0, retries=3)
+                    ans, meta = jev.ask(state, QUESTIONS, timeout=30.0 if jev.chat else 10.0, retries=3)
                 except JudgeError as exc:
                     row.update(error=str(exc)[:120], answered=time.time())
                     write("running")

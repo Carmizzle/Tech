@@ -173,11 +173,14 @@ class JevJudge:
                   "probabilities (they should sum to 1 per question).\n\nState:\n" + json.dumps(state, indent=1, default=str)
                   + "\n\nQuestions:\n" + "\n".join(lines)
                   + "\n\nReply with ONLY a JSON object keyed by question id, nothing else.")
-        body = {"model": self.model, "temperature": 0, "max_tokens": 400,
+        body = {"model": self.model, "temperature": 0, "max_tokens": 2000,
                 "messages": [{"role": "user", "content": prompt}]}
         data = _post(self.url, self.key, body, timeout, retries)
         try:
             text = data["choices"][0]["message"]["content"] or ""
-            return json.loads(re.search(r"\{.*\}", text, re.S).group(0))
-        except (KeyError, IndexError, AttributeError, ValueError) as exc:
+            found = re.search(r"\{.*\}", text, re.S)
+            if not found:
+                raise ValueError("no JSON in the reply (the model may have run out of room)")
+            return json.loads(found.group(0))
+        except (KeyError, IndexError, TypeError, ValueError) as exc:
             raise JudgeError(f"free model gave an unreadable answer: {str(exc)[:80]}") from exc
