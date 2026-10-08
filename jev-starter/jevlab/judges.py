@@ -12,12 +12,18 @@ Answers are normalised to:
 
 Reaches Jev through the Vercel AI Gateway (AI_GATEWAY_API_KEY), or directly with a
 TypeSafe key (TYPESAFE_API_KEY) if you have one.
+
+Free mode: set JEV_FREE_MODEL in .env (e.g. JEV_FREE_MODEL=openai/gpt-oss-20b) to ask a
+general chat model through the same gateway instead. It works on Vercel's free tier, but
+it's slower than Jev and its confidence scores are the model's own guess.
 """
 
 from __future__ import annotations
 
+import json
 import os
 import random
+import re
 import time
 
 import requests
@@ -27,6 +33,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 JEV_GATEWAY_URL = "https://ai-gateway.vercel.sh/typesafe/v1/systemone"
 JEV_DIRECT_URL = "https://api.typesafe.ai/v1/systemone"
+CHAT_URL = "https://ai-gateway.vercel.sh/v1/chat/completions"
 
 
 class JudgeError(Exception):
@@ -121,7 +128,13 @@ class JevJudge:
     def __init__(self):
         direct = os.getenv("TYPESAFE_API_KEY", "").strip()
         gateway = os.getenv("AI_GATEWAY_API_KEY", "").strip()
-        if direct:
+        free_model = os.getenv("JEV_FREE_MODEL", "").strip()
+        self.chat = bool(free_model) and not direct
+        if self.chat:
+            if not gateway:
+                raise JudgeError("no AI_GATEWAY_API_KEY in .env")
+            self.url, self.key, self.model = CHAT_URL, gateway, free_model
+        elif direct:
             self.url, self.key, self.model = JEV_DIRECT_URL, direct, "jev-latest"
         elif gateway:
             self.url, self.key, self.model = JEV_GATEWAY_URL, gateway, "typesafe-ai/jev"
@@ -130,8 +143,41 @@ class JevJudge:
 
     def ask(self, state, questions, timeout=20.0, retries=6):
         t0 = time.monotonic()
-        body = {"state": state, "model": self.model, "questions": questions}
-        data = _post(self.url, self.key, body, timeout, retries)
+        if self.chat:
+            data = self._ask_chat(state, questions, timeout, retries)
+        else:
+            body = {"state": state, "model": self.model, "questions": questions}
+            data = _post(self.url, self.key, body, timeout, retries)
         ms = (time.monotonic() - t0) * 1000
-        answers = normalise(questions, data.get("answers", data))
+        try:
+            answers = normalise(questions, data.get("answers", data))
+        except (KeyError, TypeError, ValueError, AttributeError) as exc:
+            if not self.chat:
+                raise
+            raise JudgeError(f"free model gave an unreadable answer: {str(exc)[:80]}") from exc
         return answers, {"judge": self.name, "model": data.get("model", self.model), "latency_ms": round(ms)}
+
+    def _ask_chat(self, state, questions, timeout, retries) -> dict:
+        """Free mode: ask a chat model the same questions and get Jev-shaped answers back."""
+        lines = []
+        for qid, q in questions.items():
+            if q["type"] == "choice":
+                lines.append(f'- "{qid}" ({q.get("instructions", "")}): pick one of {list(q["criteria"])}. '
+                             f'Answer {{"choice": <option>, "probabilities": {{<option>: <0-1>, ...}}}}')
+            elif q["type"] == "score":
+                lines.append(f'- "{qid}" ({q.get("instructions", "")}): levels low to high {list(q["criteria"])}. '
+                             f'Answer {{"score": <level name>, "probabilities": {{<level name>: <0-1>, ...}}}}')
+            else:
+                lines.append(f'- "{qid}" ({q.get("instructions", "")}): yes or no. Answer {{"p": <probability of yes, 0-1>}}')
+        prompt = ("You are a fast judge for a trading bot. Read the state, answer every question, and give honest "
+                  "probabilities (they should sum to 1 per question).\n\nState:\n" + json.dumps(state, indent=1, default=str)
+                  + "\n\nQuestions:\n" + "\n".join(lines)
+                  + "\n\nReply with ONLY a JSON object keyed by question id, nothing else.")
+        body = {"model": self.model, "temperature": 0, "max_tokens": 400,
+                "messages": [{"role": "user", "content": prompt}]}
+        data = _post(self.url, self.key, body, timeout, retries)
+        try:
+            text = data["choices"][0]["message"]["content"] or ""
+            return json.loads(re.search(r"\{.*\}", text, re.S).group(0))
+        except (KeyError, IndexError, AttributeError, ValueError) as exc:
+            raise JudgeError(f"free model gave an unreadable answer: {str(exc)[:80]}") from exc
