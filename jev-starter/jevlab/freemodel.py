@@ -1,6 +1,8 @@
 """Find a model the Vercel AI Gateway free tier can use, and turn on free mode.
 
-  uv run python -m jevlab.freemodel
+  uv run python -m jevlab.freemodel                  # pick the first model that works
+  uv run python -m jevlab.freemodel --fast           # skip "thinking" models (they answer too slowly)
+  uv run python -m jevlab.freemodel <model> [...]    # try only these models, e.g. meta/llama-3.1-8b
 
 Tries cheap, fast chat models one by one with your AI_GATEWAY_API_KEY. The first one that
 answers is saved as JEV_FREE_MODEL in .env. Never prints your key.
@@ -11,6 +13,7 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 import time
 
 import requests
@@ -19,6 +22,9 @@ from dotenv import load_dotenv
 ENV = os.path.join(os.path.dirname(__file__), "..", ".env")
 CHAT_URL = "https://ai-gateway.vercel.sh/v1/chat/completions"
 MODELS_URL = "https://ai-gateway.vercel.sh/v1/models"
+
+# "Thinking" models: they work, but take 5-15 s per answer, too slow for the loop.
+THINKING = ("gpt-oss", "gpt-5", "o1", "o3", "o4", "deepseek-r1", "qwq", "magistral", "thinking", "reasoning")
 
 # Small, fast models first. Anything else the gateway lists is tried after these, cheapest first.
 PREFERRED = [
@@ -87,7 +93,13 @@ def main() -> None:
     if not key:
         print("No AI_GATEWAY_API_KEY in .env yet. Paste your key there first, save, and run this again.")
         return
-    for model in candidates():
+    args = sys.argv[1:]
+    fast = "--fast" in args
+    chosen = [a for a in args if not a.startswith("--")]
+    models = chosen or candidates()
+    if fast and not chosen:
+        models = [m for m in models if not any(t in m.lower() for t in THINKING)]
+    for model in models:
         ok, note = try_model(key, model)
         print(f"  {model:<36} {note}")
         if ok:
