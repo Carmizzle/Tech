@@ -2,6 +2,7 @@
 
   uv run python -m jevlab.backtest              # every coin in results/loop_log.jsonl
   uv run python -m jevlab.backtest --coin HYPE  # just one
+  uv run python -m jevlab.backtest --search     # let the data look for a better rule (and check it honestly)
 
 It answers "would strategy X have done better than Y on the same calls?", and it splits the data
 in half: a strategy that only wins on one half probably got lucky. It is a rough guide, not a
@@ -45,6 +46,46 @@ def original_exit(call, market, position, since):
 
 def every_call(call, market, position, since):
     return "hold" if (1 if call["side"] == "buy" else -1) == position else call["side"]
+
+
+def make_rule(min_conf: float, min_hold: float, trend: str, exit_conf: float | None):
+    """A family of strategies for --search: conviction, hold time, a trend filter, an optional exit."""
+    def rule(call, market, position, since):
+        want = 1 if call["side"] == "buy" else -1
+        if call["conf"] < min_conf:
+            if exit_conf and position and want != position and call["conf"] >= exit_conf and since >= min_hold:
+                return "flat"
+            return "hold"
+        if want == position or (position and since < min_hold):
+            return "hold"
+        r30 = market.get("return_30s_bps", 0.0)
+        if trend == "with" and r30 * want < 2.0:       # price already moving Jev's way
+            return "hold"
+        if trend == "against" and r30 * want > -2.0:   # fade: price moved the other way, Jev expects a snap back
+            return "hold"
+        return call["side"]
+    exit_txt = f", exit {exit_conf:.0%}" if exit_conf else ""
+    rule.label = f"{min_conf:.0%}, hold {min_hold:g}s, {trend}{exit_txt}"
+    return rule
+
+
+SEARCH = [make_rule(c, h, t, e) for c in (0.7, 0.75, 0.8, 0.85, 0.9) for h in (15, 60, 180, 600)
+          for t in ("any trend", "with", "against") for e in (None, 0.6)]
+
+
+def search(name: str, recs: list[dict], taker: bool) -> None:
+    """Pick the best rules on the first half only, then see how they do on the second half they never saw."""
+    half = len(recs) // 2
+    scored = [(simulate(recs[:half], r, taker), r) for r in SEARCH]
+    scored = [(s, r) for s, r in scored if s["trades"] >= 30]  # a rule with a dozen trades proves nothing
+    scored.sort(key=lambda x: x[0]["net"], reverse=True)
+    print(f"\n  {name}: tried {len(SEARCH)} rules on the 1st half ({half} calls), best 5, then tested on the 2nd half")
+    print(f"    {'rule':<34} {'1st half':>9} {'trades':>6}   {'2nd half':>9} {'trades':>6}")
+    for s1, r in scored[:5]:
+        s2 = simulate(recs[half:], r, taker)
+        print(f"    {r.label:<34} {s1['net']:>+9.2f} {s1['trades']:>6}   {s2['net']:>+9.2f} {s2['trades']:>6}")
+    held = sum(simulate(recs[half:], r, taker)["net"] > 0 for _, r in scored[:5])
+    print(f"    -> {held} of the top 5 stayed profitable on data they hadn't seen")
 
 
 STRATEGIES = {
@@ -123,12 +164,19 @@ def main() -> None:
     ap = argparse.ArgumentParser(prog="jevlab.backtest")
     ap.add_argument("--coin", help="only this coin")
     ap.add_argument("--taker", action="store_true", help="assume market orders (default: limit orders at the mid)")
+    ap.add_argument("--search", action="store_true", help="search many rules on the 1st half, test them on the 2nd")
     a = ap.parse_args()
     groups = load(a.coin)
     if not groups:
         raise SystemExit("  not enough recorded calls yet (need 20+ answered calls per coin)")
     print(f"  fills: {'market orders, paying half the spread' if a.taker else 'limit orders at the mid (optimistic)'} "
           f"· ${NOTIONAL:,.0f} position · after fees, in $")
+    if a.search:
+        for name, recs in groups.items():
+            search(name, recs, a.taker)
+        print("\n  Benchmark: with a coin-flipping fake Jev, usually 0-2 of the top 5 survive by luck alone.\n"
+              "  A rule is only interesting if it survives the 2nd half on SEVERAL coins, with 4-5 of 5 holding up.")
+        return
     for name, recs in groups.items():
         half = len(recs) // 2
         hours = (recs[-1]["t"] - recs[0]["t"]) / 3600
