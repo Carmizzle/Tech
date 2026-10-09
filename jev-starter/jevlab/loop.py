@@ -251,6 +251,19 @@ def run_loop(coin: str, pace_s: float, minutes: float, port: int, open_browser: 
                                      time.time() - st["last_trade_t"])
         except Exception as exc:  # a broken strategy shouldn't kill the loop: show it and hold
             return f"hold · strategy error: {str(exc)[:60]}"
+        if choice in ("rebuy", "resell") and book.pos == (1 if choice == "rebuy" else -1):
+            # Close and reopen the same side at market: a full round trip, so every call is a trade.
+            st["order"] = None
+            long_ = choice == "rebuy"
+            out_px, in_px = (now["bid"], now["ask"]) if long_ else (now["ask"], now["bid"])
+            book.fill(0, out_px, hl.TAKER_FEE)
+            book.fill(book_target := (1 if long_ else -1), in_px, hl.TAKER_FEE)
+            for side, px in (("sell" if long_ else "buy", out_px), ("buy" if long_ else "sell", in_px)):
+                fills.append({"t": time.time(), "side": side, "px": px, "kind": "market", "call": rec["block"], "wait_s": 0})
+            st["last_trade_t"] = time.time()
+            return f"market re-enter {'long' if book_target > 0 else 'short'} @ {in_px:g}"
+        if choice in ("rebuy", "resell"):
+            choice = choice[2:]
         if choice not in ("buy", "sell", "flat"):
             return str(choice or "hold")
         want = {"buy": 1, "sell": -1, "flat": 0}[choice]
