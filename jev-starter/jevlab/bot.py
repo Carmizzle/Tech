@@ -120,7 +120,7 @@ def run_bot(coin: str, pace_s: float, minutes: float, port: int, open_browser: b
     brain.start(stop)
 
     RESULTS.mkdir(exist_ok=True)
-    out = RESULTS / "loop.json"
+    out = RESULTS / f"loop_{port}.json"  # one file per dashboard, so several can run side by side
     log = open(RESULTS / "bot_log.jsonl", "a")
     decisions: list[dict] = []
     fills: list[dict] = []

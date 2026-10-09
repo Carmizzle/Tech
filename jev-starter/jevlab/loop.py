@@ -191,7 +191,7 @@ def run_loop(coin: str, pace_s: float, minutes: float, port: int, open_browser: 
     if not market.ready.wait(15):
         raise SystemExit("  no price feed from Hyperliquid after 15s, check the connection")
     RESULTS.mkdir(exist_ok=True)
-    out = RESULTS / "loop.json"
+    out = RESULTS / f"loop_{port}.json"  # one file per dashboard, so several can run side by side
     log = open(RESULTS / "loop_log.jsonl", "a")
     book = PaperBook()
     decisions: list[dict] = []

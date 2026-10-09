@@ -22,6 +22,8 @@ class _Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path in ("/", "/index.html"):
             self.path = f"/dashboard/{self.page}"
+        elif self.path.startswith("/results/loop.json"):  # each port shows its own run
+            self.path = self.path.replace("/results/loop.json", f"/results/loop_{self.port}.json", 1)
         return super().do_GET()
 
     def log_message(self, *args):  # keep the terminal clean
@@ -35,7 +37,7 @@ class _Server(ThreadingHTTPServer):
 
 
 def serve(port: int = 8765, open_browser: bool = True, page: str = "loop.html") -> ThreadingHTTPServer:
-    handler = type("Handler", (_Handler,), {"page": page})
+    handler = type("Handler", (_Handler,), {"page": page, "port": port})
     try:
         server = _Server(("127.0.0.1", port), partial(handler, directory=str(ROOT)))
     except OSError:
