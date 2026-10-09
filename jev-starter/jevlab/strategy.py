@@ -31,19 +31,13 @@ and ask it to rewrite decide(), e.g. "only buy when Jev is 90%+ sure AND
 buyers have been in control for the last 30 seconds".
 """
 
-# Trend rider: built for a slow Jev (free mode answers 5-20 s late). Instead of guessing the
-# next few seconds, only join a move that's already under way and hold it for a while, so each
-# trade has room to make more than its fees. Older versions are in git history.
+# The defaults are the three rules from the video.
 SETTINGS = {
-    "min_conf": 0.75,        # Jev must be at least this sure...
-    "trend_bps": 3.0,        # ...and price must already be moving its way over 30s (1 bps = 0.01%)...
-    "buy_flow": 0.58,        # ...with buyers (or sellers, 1 - this) doing most of the trading over 30s
-    "max_spread_bps": 1.5,   # skip when the market is thin: a wide spread costs you on every trade
-    "min_hold": 60,          # seconds to keep a position before exiting or flipping (fewer trades, fewer fees)
+    "min_conf": 0.85,  # only act when Jev is at least this sure
+    "min_hold": 15,    # seconds to sit still after a trade (no flip-flopping)
 }
 
-DESCRIPTION = (f"trend rider · join moves ≥{SETTINGS['trend_bps']:g} bps/30s at ≥{SETTINGS['min_conf']:.0%} · "
-               f"hold ≥{SETTINGS['min_hold']}s · exit when the trend fades")
+DESCRIPTION = f"trade only at ≥{SETTINGS['min_conf']:.0%} conviction · ≥{SETTINGS['min_hold']}s between flips"
 
 
 def decide(call: dict, market: dict, position: int, seconds_since_trade: float) -> str:
@@ -55,28 +49,11 @@ def decide(call: dict, market: dict, position: int, seconds_since_trade: float) 
         return "flat"  # Claude changed its mind: get out of the old direction first
     if (bias == "long" and want < 0) or (bias == "short" and want > 0):
         return f"hold · against Claude's {bias} bias"
-
-    r30 = market.get("return_30s_bps", 0.0)
-    flow = market.get("aggressor_buy_share_30s", 0.5)
-    up = r30 >= SETTINGS["trend_bps"] and flow >= SETTINGS["buy_flow"]
-    down = r30 <= -SETTINGS["trend_bps"] and flow <= 1 - SETTINGS["buy_flow"]
-    settled = seconds_since_trade >= SETTINGS["min_hold"]
-
-    # Exit when the move we joined has faded: price and order flow both turned against us.
-    if position > 0 and r30 < 0 and flow < 0.5:
-        return "flat" if settled else "hold · trend fading, min hold"
-    if position < 0 and r30 > 0 and flow > 0.5:
-        return "flat" if settled else "hold · trend fading, min hold"
-
-    if want == position:
-        return "hold · already " + ("long" if want > 0 else "short")
-    if market.get("spread_bps", 0.0) > SETTINGS["max_spread_bps"]:
-        return "hold · spread too wide"
     if call["conf"] < SETTINGS["min_conf"]:
         return "hold · low conviction"
-    if not (up if want > 0 else down):
-        return "hold · no trend to ride"
-    if position and not settled:
+    if want == position:
+        return "hold · already " + ("long" if want > 0 else "short")
+    if seconds_since_trade < SETTINGS["min_hold"]:
         return "hold · too soon to flip"
     return call["side"]
 
