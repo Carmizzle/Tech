@@ -288,7 +288,7 @@ def run_loop(coin: str, pace_s: float, minutes: float, port: int, open_browser: 
 
     def ask(seq: int) -> None:
         snap = market.snapshot()
-        rec = {"block": seq, "t_ask": time.time(), "state": snap["state"]}
+        rec = {"block": seq, "coin": coin, "t_ask": time.time(), "state": snap["state"]}
         try:
             ans, meta = jev.ask(snap["state"], QUESTIONS, timeout=call_timeout, retries=0)
             side = ans["side"]["choice"]
