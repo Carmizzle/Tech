@@ -2,9 +2,9 @@
 
   uv run python -m jevlab.everycall --coin HYPE --minutes 60
 
-Takes the same flags as `loop`. Any confidence counts, there's no wait between flips, and
-every on-time call becomes a trade: it follows the call, and if it already holds that side it
-closes and reopens it (a full round trip). Uses market orders so every order fills.
+Takes the same flags as `loop`. Any confidence counts and there's no wait between flips: it
+follows every on-time call, holding when the call agrees with its position and flipping at
+market when it doesn't. Uses market orders so every order fills.
 Your own strategy.py is untouched. This is paper trading only.
 """
 
@@ -14,13 +14,13 @@ import sys
 
 from . import loop
 
-DESCRIPTION = "EXPERIMENT · every call is a trade (market orders), any confidence, no waiting"
+DESCRIPTION = "EXPERIMENT · follow every call (market orders), any confidence, no waiting"
 
 
 def decide(call: dict, market: dict, position: int, seconds_since_trade: float) -> str:
     want = 1 if call["side"] == "buy" else -1
     if want == position:
-        return "re" + call["side"]  # already on that side: close and reopen, so this call is a trade too
+        return "hold · already " + ("long" if want > 0 else "short")
     return call["side"]
 
 
