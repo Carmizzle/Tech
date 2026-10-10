@@ -247,7 +247,7 @@ def run_loop(coin: str, pace_s: float, minutes: float, port: int, open_browser: 
     def decide(rec: dict, now: dict) -> str:
         """Hand Jev's call to strategy.decide(), then turn its answer into a (paper) order. Runs under the lock."""
         try:
-            choice = strategy.decide({"side": rec["side"], "conf": rec["conf"]}, rec["state"], book.pos,
+            choice = strategy.decide({"side": rec["side"], "conf": rec["conf"]}, {**rec["state"], "mid": now["mid"]}, book.pos,
                                      time.time() - st["last_trade_t"])
         except Exception as exc:  # a broken strategy shouldn't kill the loop: show it and hold
             return f"hold · strategy error: {str(exc)[:60]}"

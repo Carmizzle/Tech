@@ -142,7 +142,7 @@ def simulate(recs: list[dict], decide, taker: bool) -> dict:
                 cash += qty * r["mid"]; fees += abs(qty) * r["mid"] * fee_rate; qty, pos = 0.0, 0; trades += 1
         prev_t = r["t"]
         try:
-            choice = decide({"side": r["side"], "conf": r["conf"]}, r.get("state", {}), pos, r["t"] - last_t)
+            choice = decide({"side": r["side"], "conf": r["conf"]}, {**r.get("state", {}), "mid": r["mid"]}, pos, r["t"] - last_t)
         except Exception:
             continue
         if choice not in ("buy", "sell", "flat"):
