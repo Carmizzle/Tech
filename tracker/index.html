@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wallet Tracker</title>
+<style>
+  :root {
+    --bg: #0b0d12; --panel: #12151c; --panel2: #171b24; --line: #232836; --text: #e6e9ef; --dim: #8a93a6;
+    --green: #2ecc71; --red: #ff5d6c; --amber: #f5b53d; --accent: #8b7bff; --blue: #4ea1ff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  a { color: var(--blue); text-decoration: none; } a:hover { text-decoration: underline; }
+  header { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  header h1 { margin: 0; font-size: 18px; }
+  .pill { padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); font-size: 12px; color: var(--dim); }
+  .pill.live { color: var(--green); border-color: #1f5f3a; } .pill.bad { color: var(--red); border-color: #6a2a31; }
+  .pill.warn { color: var(--amber); border-color: #6a5320; }
+  .spacer { flex: 1; }
+  main { display: grid; grid-template-columns: 320px 1fr; gap: 16px; padding: 16px; }
+  main > * { min-width: 0; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; padding: 16px; } }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  section h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); }
+  input, select, textarea, button { font: inherit; color: var(--text); background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; }
+  input, textarea, select { width: 100%; }
+  button { cursor: pointer; } button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .row { display: flex; gap: 6px; margin-bottom: 6px; } .row > * { flex: 1; } .row > button { flex: 0 0 auto; }
+  .wallet { display: flex; align-items: center; gap: 8px; padding: 7px 4px; border-bottom: 1px solid var(--line); }
+  .wallet:last-child { border-bottom: 0; }
+  .wallet .name { font-weight: 600; } .wallet .addr { color: var(--dim); font-size: 12px; font-family: ui-monospace, Consolas, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wallet .meta { flex: 1; min-width: 0; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); flex: 0 0 auto; }
+  .dot.live { background: var(--green); } .dot.bad { background: var(--red); }
+  .x { background: none; border: 0; color: var(--dim); padding: 2px 6px; } .x:hover { color: var(--red); }
+  details { margin-top: 10px; } summary { cursor: pointer; color: var(--dim); font-size: 13px; }
+  .hint { color: var(--dim); font-size: 12px; margin: 4px 0 8px; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--dim); font-weight: 500; padding: 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  tr.new { animation: flash 1.5s ease-out; }
+  @keyframes flash { from { background: #2a2550; } to { background: transparent; } }
+  .BUY { color: var(--green); font-weight: 700; } .SELL { color: var(--red); font-weight: 700; }
+  .SWAP { color: var(--accent); font-weight: 700; } .IN { color: var(--green); } .OUT { color: var(--red); }
+  .FAILED, .muted { color: var(--dim); }
+  .mono { font-family: ui-monospace, Consolas, monospace; }
+  .lat-fast { color: var(--green); } .lat-mid { color: var(--amber); } .lat-slow { color: var(--red); }
+  .filters { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; } .filters select { width: auto; }
+  #toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--panel2); border: 1px solid var(--line);
+           padding: 10px 16px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: 90vw; }
+  #toast.show { opacity: 1; }
+  .empty { color: var(--dim); text-align: center; padding: 40px 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Wallet Tracker</h1>
+  <span id="wsPill" class="pill">connecting…</span>
+  <span id="rpcPill" class="pill">RPC</span>
+  <span class="spacer"></span>
+  <label class="pill"><input id="soundToggle" type="checkbox" style="width:auto;margin:0 4px 0 0">sound on new trades</label>
+</header>
+
+<main>
+  <div>
+    <section>
+      <h2>Wallets (<span id="walletCount">0</span>)</h2>
+      <div class="row"><input id="labelInput" placeholder="Name (optional)"></div>
+      <div class="row">
+        <input id="addrInput" placeholder="Solana wallet address" class="mono">
+        <button class="primary" id="addBtn">Add</button>
+      </div>
+      <div id="walletList"></div>
+
+      <details>
+        <summary>Share / import a wallet list</summary>
+        <p class="hint">Export gives you a list to send a friend. Import accepts that list, or one wallet per line as <span class="mono">name,address</span>.</p>
+        <textarea id="shareBox" rows="6" class="mono" placeholder='[{"label":"whale","address":"..."}]'></textarea>
+        <div class="row" style="margin-top:6px">
+          <button id="exportBtn">Export</button><button id="copyBtn">Copy</button><button id="importBtn">Import</button>
+        </div>
+      </details>
+
+      <details id="settingsBox">
+        <summary>Connection settings (RPC)</summary>
+        <p class="hint">The free public Solana RPC works but is rate-limited and drops connections. For GMGN-level speed with many
+          wallets, paste a private RPC URL (e.g. a free Helius or QuickNode endpoint). It's stored only in this browser.</p>
+        <input id="rpcInput" class="mono" placeholder="https://api.mainnet-beta.solana.com">
+        <input id="wsInput" class="mono" style="margin-top:6px" placeholder="WebSocket URL (blank = worked out from the RPC URL)">
+        <div class="row" style="margin-top:6px">
+          <select id="commitmentSel">
+            <option value="confirmed">confirmed (fast, reliable)</option>
+            <option value="processed">processed (fastest, rarely dropped)</option>
+          </select>
+        </div>
+        <div class="row">
+          <select id="backfillSel">
+            <option value="10">load last 10 txs per wallet</option>
+            <option value="25" selected>load last 25 txs per wallet</option>
+            <option value="50">load last 50 txs per wallet</option>
+          </select>
+        </div>
+        <button id="saveSettings" class="primary">Save &amp; reconnect</button>
+      </details>
+    </section>
+  </div>
+
+  <section>
+    <h2>Transactions (<span id="txCount">0</span>)</h2>
+    <div class="filters">
+      <select id="walletFilter"><option value="">All wallets</option></select>
+      <select id="typeFilter">
+        <option value="">All types</option><option value="trades">Buys &amp; sells</option>
+        <option value="BUY">Buys</option><option value="SELL">Sells</option><option value="other">Transfers &amp; other</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Time</th><th>Wallet</th><th>Type</th><th>Token</th><th>Amount</th><th>Value</th>
+          <th title="How long after the block was produced this tracker showed the transaction">Seen after block</th><th>Tx</th>
+        </tr></thead>
+        <tbody id="txBody"></tbody>
+      </table>
+      <div id="emptyState" class="empty">Add a wallet to start tracking.</div>
+    </div>
+  </section>
+</main>
+<div id="toast"></div>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------- constants & storage
+const PUBLIC_RPC = "https://api.mainnet-beta.solana.com";
+const SOL_MINT = "So11111111111111111111111111111111111111112";
+const STABLES = {
+  "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": "USDC",
+  "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB": "USDT",
+};
+const ADDR_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+const MAX_ROWS = 1000;
+const POLL_MS = 15000;
+
+function load(key, fallback) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
+}
+function save(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} }
+
+const settings = Object.assign({ rpc: "", ws: "", commitment: "confirmed", backfill: 25 }, load("tracker.settings", {}));
+let wallets = load("tracker.wallets", null) || [];      // [{label, address}]
+const txs = new Map();                                   // key "sig:wallet" -> row
+const seen = new Set();                                  // same keys, never re-fetched
+const walletState = {};                                  // address -> {subId, live, error, lastPoll}
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const short = a => a ? a.slice(0, 4) + "…" + a.slice(-4) : "";
+const labelOf = addr => (wallets.find(w => w.address === addr) || {}).label || short(addr);
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 3500); }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function rpcUrl() { return (settings.rpc || "").trim() || PUBLIC_RPC; }
+function wsUrl() {
+  if ((settings.ws || "").trim()) return settings.ws.trim();
+  return rpcUrl().replace(/^http/, "ws");
+}
+
+// ---------------------------------------------------------------- HTTP RPC (rate-limit aware)
+let inFlight = 0, rpcErrors = 0;
+const MAX_IN_FLIGHT = 4;
+async function rpc(method, params, tries = 5) {
+  for (let attempt = 0; attempt < tries; attempt++) {
+    while (inFlight >= MAX_IN_FLIGHT) await sleep(50);
+    inFlight++;
+    try {
+      const r = await fetch(rpcUrl(), { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
+      if (r.status === 429 || r.status >= 500) throw Object.assign(new Error("RPC busy (" + r.status + ")"), { retry: true });
+      const j = await r.json();
+      if (j.error) {
+        if (j.error.code === 429 || /rate|limit/i.test(j.error.message || "")) throw Object.assign(new Error(j.error.message), { retry: true });
+        throw new Error(j.error.message || "RPC error");
+      }
+      rpcErrors = 0; setRpcPill();
+      return j.result;
+    } catch (e) {
+      rpcErrors++; setRpcPill(e.message);
+      if (attempt === tries - 1 || (!e.retry && !(e instanceof TypeError))) throw e;
+      await sleep(Math.min(8000, 400 * 2 ** attempt) + Math.random() * 300);
+    } finally { inFlight--; }
+  }
+}
+function setRpcPill(err) {
+  const p = $("rpcPill"), custom = !!(settings.rpc || "").trim();
+  p.textContent = (custom ? "private RPC" : "public RPC") + (rpcErrors > 2 ? " · busy" : "");
+  p.className = "pill " + (rpcErrors > 2 ? "warn" : custom ? "live" : "");
+  p.title = err || "";
+}
+
+// Fetch a transaction; right after a live notification the RPC may not have it yet, so retry briefly.
+async function getTx(sig, patient) {
+  const commitment = "confirmed";  // getTransaction does not accept "processed"
+  for (let i = 0; i < (patient ? 12 : 2); i++) {
+    const tx = await rpc("getTransaction", [sig, { encoding: "jsonParsed", maxSupportedTransactionVersion: 0, commitment }]);
+    if (tx) return tx;
+    await sleep(600);
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------- decoding a transaction for one wallet
+function decode(tx, wallet, sig) {
+  const msg = tx.transaction.message, meta = tx.meta || {};
+  const keys = (msg.accountKeys || []).map(k => typeof k === "string" ? k : k.pubkey);
+  const idx = keys.indexOf(wallet);
+  let lamports = idx >= 0 && meta.postBalances ? (meta.postBalances[idx] - meta.preBalances[idx]) : 0;
+  if (keys[0] === wallet) lamports += meta.fee || 0;          // ignore the network fee in the trade amount
+
+  // Token balance changes for accounts this wallet owns, summed per mint.
+  const deltas = {};
+  const add = (b, sign) => {
+    if (!b || b.owner !== wallet) return;
+    const amt = parseFloat(b.uiTokenAmount?.uiAmountString ?? b.uiTokenAmount?.uiAmount ?? 0) || 0;
+    deltas[b.mint] = (deltas[b.mint] || 0) + sign * amt;
+  };
+  (meta.postTokenBalances || []).forEach(b => add(b, 1));
+  (meta.preTokenBalances || []).forEach(b => add(b, -1));
+
+  let sol = lamports / 1e9 + (deltas[SOL_MINT] || 0);          // wrapped SOL counts as SOL
+  delete deltas[SOL_MINT];
+  for (const m in deltas) if (Math.abs(deltas[m]) < 1e-12) delete deltas[m];
+  if (Math.abs(sol) < 1e-9) sol = 0;
+
+  const row = { key: sig + ":" + wallet, sig, wallet, slot: tx.slot, blockTime: tx.blockTime,
+                type: "OTHER", mint: null, amount: 0, quote: "SOL", quoteAmt: 0, failed: !!meta.err };
+  if (row.failed) { row.type = "FAILED"; return row; }
+
+  const mints = Object.keys(deltas);
+  let tokens = mints.filter(m => !STABLES[m]);
+  const stables = mints.filter(m => STABLES[m]);
+  if (!tokens.length && stables.length && sol) tokens = stables;   // SOL <-> USDC is itself a trade
+  const quoteStable = stables.find(m => !tokens.includes(m));
+  const up = tokens.filter(m => deltas[m] > 0), down = tokens.filter(m => deltas[m] < 0);
+
+  if (up.length && down.length) {                                  // token -> token
+    row.type = "SWAP"; row.mint = up[0]; row.amount = deltas[up[0]];
+    row.fromMint = down[0]; row.fromAmt = -deltas[down[0]];
+  } else if (up.length && (sol < 0 || (quoteStable && deltas[quoteStable] < 0))) {
+    row.type = "BUY"; row.mint = up[0]; row.amount = deltas[up[0]];
+    if (sol < 0) { row.quoteAmt = -sol; } else { row.quote = STABLES[quoteStable]; row.quoteAmt = -deltas[quoteStable]; }
+  } else if (down.length && (sol > 0 || (quoteStable && deltas[quoteStable] > 0))) {
+    row.type = "SELL"; row.mint = down[0]; row.amount = -deltas[down[0]];
+    if (sol > 0) { row.quoteAmt = sol; } else { row.quote = STABLES[quoteStable]; row.quoteAmt = deltas[quoteStable]; }
+  } else if (up.length || down.length) {                           // tokens moved without payment: a transfer
+    const m = (up[0] || down[0]); row.mint = m; row.amount = Math.abs(deltas[m]);
+    row.type = deltas[m] > 0 ? "IN" : "OUT";
+  } else if (stables.length) {
+    const m = stables[0]; row.mint = m; row.amount = Math.abs(deltas[m]); row.type = deltas[m] > 0 ? "IN" : "OUT";
+  } else if (sol) {
+    row.type = sol > 0 ? "IN" : "OUT"; row.mint = SOL_MINT; row.amount = Math.abs(sol);
+  }
+  return row;
+}
+
+// ---------------------------------------------------------------- token names & prices (DexScreener)
+const tokenInfo = { [SOL_MINT]: { symbol: "SOL", price: null } };
+for (const m in STABLES) tokenInfo[m] = { symbol: STABLES[m], price: 1 };
+const pendingMints = new Set();
+let infoTimer = null;
+function wantInfo(mint) {
+  if (!mint || (tokenInfo[mint] && tokenInfo[mint].symbol && mint !== SOL_MINT)) return;
+  pendingMints.add(mint);
+  clearTimeout(infoTimer); infoTimer = setTimeout(fetchInfo, 300);
+}
+async function fetchInfo() {
+  const batch = [...pendingMints].slice(0, 30);
+  batch.forEach(m => pendingMints.delete(m));
+  if (!batch.length) return;
+  try {
+    const r = await fetch("https://api.dexscreener.com/latest/dex/tokens/" + batch.join(","));
+    const j = await r.json();
+    for (const p of j.pairs || []) {
+      for (const t of [p.baseToken, p.quoteToken]) {
+        if (!batch.includes(t.address)) continue;
+        const cur = tokenInfo[t.address] || {};
+        const price = t === p.baseToken ? parseFloat(p.priceUsd) : null;
+        const liq = p.liquidity?.usd || 0;
+        if (!cur.symbol || (price && liq > (cur.liq || 0))) {
+          tokenInfo[t.address] = { symbol: t.symbol, price: price || cur.price || null, liq: price ? liq : (cur.liq || 0) };
+        }
+      }
+    }
+  } catch { /* names are cosmetic: keep showing the short mint */ }
+  for (const m of batch) if (!tokenInfo[m]) tokenInfo[m] = { symbol: null, price: null };
+  render();
+  if (pendingMints.size) infoTimer = setTimeout(fetchInfo, 300);
+}
+async function refreshSolPrice() {
+  delete tokenInfo[SOL_MINT].symbol; pendingMints.add(SOL_MINT); await fetchInfo(); tokenInfo[SOL_MINT].symbol = "SOL";
+}
+
+// ---------------------------------------------------------------- adding rows
+async function handleSignature(sig, wallet, opts = {}) {
+  const key = sig + ":" + wallet;
+  if (seen.has(key)) return;
+  seen.add(key);
+  const detectedAt = Date.now();
+  // Show it straight away; fill in the details when the RPC returns the full transaction.
+  const placeholder = { key, sig, wallet, type: "…", pending: true, detectedAt, live: !!opts.live, blockTime: opts.blockTime || null };
+  txs.set(key, placeholder); render(key);
+  try {
+    const tx = await getTx(sig, opts.live);
+    if (!tx) { Object.assign(placeholder, { type: "?", pending: false, note: "details not available yet" }); render(); return; }
+    const row = decode(tx, wallet, sig);
+    row.detectedAt = detectedAt; row.live = !!opts.live;
+    txs.set(key, row);
+    wantInfo(row.mint); wantInfo(row.fromMint);
+    if (row.live && (row.type === "BUY" || row.type === "SELL")) beep(row.type);
+    trim(); render(key);
+  } catch (e) {
+    Object.assign(placeholder, { type: "?", pending: false, note: e.message }); render();
+  }
+}
+function trim() {
+  if (txs.size <= MAX_ROWS) return;
+  const sorted = [...txs.values()].sort(byTime);
+  sorted.slice(MAX_ROWS).forEach(r => txs.delete(r.key));
+}
+
+// ---------------------------------------------------------------- history + safety-net polling
+async function backfill(wallet, limit) {
+  const sigs = await rpc("getSignaturesForAddress", [wallet, { limit, commitment: "confirmed" }]);
+  const st = walletState[wallet]; if (!st) return;
+  for (const s of sigs) handleSignature(s.signature, wallet, { blockTime: s.blockTime });
+  st.ready = true;     // from now on, anything new the poll finds is a live transaction
+}
+async function poll(wallet) {
+  const st = walletState[wallet]; if (!st || !st.ready) return;
+  try {
+    const sigs = await rpc("getSignaturesForAddress", [wallet, { limit: 20, commitment: "confirmed" }], 2);
+    st.error = null;
+    for (const s of sigs) if (!seen.has(s.signature + ":" + wallet)) handleSignature(s.signature, wallet, { live: true, blockTime: s.blockTime });
+  } catch (e) { st.error = e.message; }
+  renderWallets();
+}
+let pollIdx = 0, lastPollAt = 0;
+setInterval(() => {   // one wallet per tick, so each wallet is checked about every POLL_MS without bursts
+  if (!wallets.length) return;
+  if (Date.now() - lastPollAt < Math.max(250, POLL_MS / wallets.length)) return;
+  lastPollAt = Date.now();
+  poll(wallets[pollIdx++ % wallets.length].address);
+}, 250);
+
+// ---------------------------------------------------------------- live WebSocket feed
+let ws = null, wsBackoff = 1000, reqId = 1;
+const pendingSubs = {};  // request id -> wallet
+const subToWallet = {};  // subscription id -> wallet
+function connect() {
+  try { ws && ws.close(); } catch {}
+  setWsPill("connecting…", "");
+  let sock;
+  try { sock = new WebSocket(wsUrl()); } catch (e) { setWsPill("bad WebSocket URL", "bad"); return; }
+  ws = sock;
+  sock.onopen = () => {
+    wsBackoff = 1000; setWsPill("live", "live");
+    for (const k in subToWallet) delete subToWallet[k];
+    wallets.forEach(w => subscribe(w.address));
+    wallets.forEach(w => poll(w.address));      // catch anything missed while disconnected
+  };
+  sock.onmessage = ev => {
+    let m; try { m = JSON.parse(ev.data); } catch { return; }
+    if (m.id && pendingSubs[m.id]) {
+      const wallet = pendingSubs[m.id]; delete pendingSubs[m.id];
+      if (m.error) { walletState[wallet] && (walletState[wallet].error = m.error.message); }
+      else if (walletState[wallet]) { walletState[wallet].subId = m.result; walletState[wallet].live = true; subToWallet[m.result] = wallet; }
+      renderWallets(); return;
+    }
+    if (m.method === "logsNotification") {
+      const wallet = subToWallet[m.params.subscription];
+      const v = m.params.result.value;
+      if (wallet && v && v.signature) handleSignature(v.signature, wallet, { live: true });
+    }
+  };
+  sock.onclose = () => {
+    if (ws !== sock) return;
+    Object.values(walletState).forEach(s => { s.live = false; s.subId = null; });
+    renderWallets();
+    setWsPill("reconnecting in " + Math.round(wsBackoff / 1000) + "s", "bad");
+    setTimeout(() => { if (ws === sock) connect(); }, wsBackoff);
+    wsBackoff = Math.min(30000, wsBackoff * 2);
+  };
+  sock.onerror = () => {};
+}
+function subscribe(wallet) {
+  if (!ws || ws.readyState !== 1) return;
+  const id = reqId++; pendingSubs[id] = wallet;
+  ws.send(JSON.stringify({ jsonrpc: "2.0", id, method: "logsSubscribe", params: [{ mentions: [wallet] }, { commitment: settings.commitment }] }));
+}
+function unsubscribe(wallet) {
+  const st = walletState[wallet];
+  if (st && st.subId != null && ws && ws.readyState === 1) {
+    ws.send(JSON.stringify({ jsonrpc: "2.0", id: reqId++, method: "logsUnsubscribe", params: [st.subId] }));
+    delete subToWallet[st.subId];
+  }
+}
+function setWsPill(text, cls) { const p = $("wsPill"); p.textContent = "live feed: " + text; p.className = "pill " + cls; }
+
+// ---------------------------------------------------------------- wallets
+function addWallet(address, label, quiet) {
+  address = (address || "").trim();
+  if (!ADDR_RE.test(address)) { if (!quiet) toast("That doesn't look like a Solana address"); return false; }
+  if (wallets.some(w => w.address === address)) { if (!quiet) toast("Already tracking that wallet"); return false; }
+  wallets.push({ label: (label || "").trim().slice(0, 40), address });
+  save("tracker.wallets", wallets);
+  startWallet(address);
+  renderWallets(); return true;
+}
+function startWallet(address) {
+  walletState[address] = { subId: null, live: false, error: null };
+  subscribe(address);
+  backfill(address, Number(settings.backfill) || 25).catch(e => { walletState[address].error = e.message; renderWallets(); });
+}
+function removeWallet(address) {
+  unsubscribe(address);
+  delete walletState[address];
+  wallets = wallets.filter(w => w.address !== address);
+  save("tracker.wallets", wallets);
+  for (const [k, r] of txs) if (r.wallet === address) { txs.delete(k); seen.delete(k); }
+  renderWallets(); render();
+}
+
+// ---------------------------------------------------------------- rendering
+const byTime = (a, b) => (b.blockTime || b.detectedAt / 1000 || 0) - (a.blockTime || a.detectedAt / 1000 || 0);
+function fmtNum(n) {
+  if (n == null || isNaN(n)) return "";
+  const a = Math.abs(n);
+  if (a >= 1e9) return (n / 1e9).toFixed(2) + "B";
+  if (a >= 1e6) return (n / 1e6).toFixed(2) + "M";
+  if (a >= 1e3) return (n / 1e3).toFixed(2) + "K";
+  if (a >= 1) return n.toFixed(a >= 100 ? 1 : 3);
+  return n.toPrecision(3);
+}
+function fmtAgo(sec) {
+  if (!sec) return "…";
+  const d = Math.max(0, Date.now() / 1000 - sec);
+  if (d < 60) return Math.floor(d) + "s ago";
+  if (d < 3600) return Math.floor(d / 60) + "m ago";
+  if (d < 86400) return Math.floor(d / 3600) + "h ago";
+  return new Date(sec * 1000).toLocaleDateString();
+}
+function tokenCell(mint) {
+  if (!mint) return "";
+  const info = tokenInfo[mint] || {};
+  const name = info.symbol ? esc(info.symbol) : '<span class="mono muted">' + esc(short(mint)) + "</span>";
+  if (mint === SOL_MINT || STABLES[mint]) return name;
+  return '<a href="https://gmgn.ai/sol/token/' + esc(mint) + '" target="_blank" rel="noopener">' + name + "</a>";
+}
+function valueUsd(r) {
+  if (r.type === "BUY" || r.type === "SELL") {
+    if (r.quote === "SOL") { const p = tokenInfo[SOL_MINT].price; return p ? r.quoteAmt * p : null; }
+    return r.quoteAmt;
+  }
+  if (r.mint) { const p = (tokenInfo[r.mint] || {}).price; return p ? r.amount * p : null; }
+  return null;
+}
+let renderQueued = false, flashKeys = new Set();
+function render(flashKey) {
+  if (flashKey) flashKeys.add(flashKey);
+  if (renderQueued) return; renderQueued = true;
+  requestAnimationFrame(() => { renderQueued = false; draw(); });
+}
+function draw() {
+  const wf = $("walletFilter").value, tf = $("typeFilter").value;
+  const rows = [...txs.values()].filter(r => (!wf || r.wallet === wf) && (
+    !tf || (tf === "trades" ? (r.type === "BUY" || r.type === "SELL") : tf === "other" ? !["BUY", "SELL"].includes(r.type) : r.type === tf)
+  )).sort(byTime);
+  $("txCount").textContent = txs.size;
+  $("emptyState").style.display = rows.length ? "none" : "block";
+  $("emptyState").textContent = wallets.length ? "No transactions yet." : "Add a wallet to start tracking.";
+  $("txBody").innerHTML = rows.slice(0, 500).map(r => {
+    let amount = "", value = "";
+    if (r.type === "BUY" || r.type === "SELL") {
+      amount = fmtNum(r.amount) + ' <span class="muted">for ' + fmtNum(r.quoteAmt) + " " + esc(r.quote) + "</span>";
+    } else if (r.type === "SWAP") {
+      amount = fmtNum(r.fromAmt) + " " + tokenCell(r.fromMint) + " → " + fmtNum(r.amount);
+    } else if (r.amount) amount = fmtNum(r.amount);
+    const usd = valueUsd(r); if (usd != null) value = "$" + fmtNum(usd);
+    let lat = '<span class="muted">history</span>';
+    if (r.live && r.blockTime && r.detectedAt) {
+      const s = (r.detectedAt / 1000 - r.blockTime);
+      lat = '<span class="' + (s < 3 ? "lat-fast" : s < 10 ? "lat-mid" : "lat-slow") + '">' + Math.max(0, s).toFixed(1) + "s</span>";
+    } else if (r.live) lat = '<span class="lat-fast">live</span>';
+    const type = r.pending ? '<span class="muted">loading…</span>' : '<span class="' + esc(r.type) + '">' + esc(r.type) + "</span>";
+    return '<tr class="' + (flashKeys.has(r.key) ? "new" : "") + '" title="' + esc(r.note || "") + '">' +
+      "<td>" + fmtAgo(r.blockTime) + "</td>" +
+      '<td><a href="https://gmgn.ai/sol/address/' + esc(r.wallet) + '" target="_blank" rel="noopener">' + esc(labelOf(r.wallet)) + "</a></td>" +
+      "<td>" + type + "</td><td>" + tokenCell(r.mint) + "</td>" +
+      "<td>" + amount + "</td><td>" + value + "</td><td>" + lat + "</td>" +
+      '<td><a class="mono" href="https://solscan.io/tx/' + esc(r.sig) + '" target="_blank" rel="noopener">' + esc(r.sig.slice(0, 6)) + "</a></td></tr>";
+  }).join("");
+  flashKeys.clear();
+}
+function renderWallets() {
+  $("walletCount").textContent = wallets.length;
+  $("walletList").innerHTML = wallets.map(w => {
+    const st = walletState[w.address] || {};
+    const cls = st.live ? "live" : st.error ? "bad" : "";
+    const status = st.live ? "live" : st.error ? esc(st.error) : "connecting…";
+    return '<div class="wallet"><span class="dot ' + cls + '" title="' + status + '"></span><div class="meta">' +
+      '<div class="name">' + esc(w.label || short(w.address)) + "</div>" +
+      '<div class="addr">' + esc(w.address) + "</div></div>" +
+      '<a href="https://gmgn.ai/sol/address/' + esc(w.address) + '" target="_blank" rel="noopener" title="Open in GMGN">GMGN</a>' +
+      '<button class="x" data-remove="' + esc(w.address) + '" title="Stop tracking">✕</button></div>';
+  }).join("") || '<p class="hint">No wallets yet.</p>';
+  const wf = $("walletFilter"), cur = wf.value;
+  wf.innerHTML = '<option value="">All wallets</option>' + wallets.map(w =>
+    '<option value="' + esc(w.address) + '">' + esc(w.label || short(w.address)) + "</option>").join("");
+  wf.value = wallets.some(w => w.address === cur) ? cur : "";
+}
+
+// ---------------------------------------------------------------- sound
+let audio;
+function beep(type) {
+  if (!$("soundToggle").checked) return;
+  try {
+    audio = audio || new AudioContext();
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.frequency.value = type === "BUY" ? 880 : 440; g.gain.value = 0.06;
+    o.connect(g); g.connect(audio.destination); o.start(); o.stop(audio.currentTime + 0.12);
+  } catch {}
+}
+
+// ---------------------------------------------------------------- UI wiring
+$("addBtn").onclick = () => { if (addWallet($("addrInput").value, $("labelInput").value)) { $("addrInput").value = ""; $("labelInput").value = ""; } };
+$("addrInput").addEventListener("keydown", e => { if (e.key === "Enter") $("addBtn").click(); });
+$("walletList").addEventListener("click", e => { const a = e.target.getAttribute("data-remove"); if (a) removeWallet(a); });
+$("walletFilter").onchange = () => render();
+$("typeFilter").onchange = () => render();
+$("exportBtn").onclick = () => { $("shareBox").value = JSON.stringify(wallets, null, 1); };
+$("copyBtn").onclick = async () => {
+  if (!$("shareBox").value) $("exportBtn").click();
+  try { await navigator.clipboard.writeText($("shareBox").value); toast("Copied"); } catch { $("shareBox").select(); toast("Press Ctrl+C to copy"); }
+};
+$("importBtn").onclick = () => {
+  const text = $("shareBox").value.trim(); let list = [];
+  try { const j = JSON.parse(text); list = (Array.isArray(j) ? j : []).map(w => typeof w === "string" ? { address: w } : w); }
+  catch { list = text.split(/\n+/).map(l => { const p = l.split(/[,\t;]/).map(s => s.trim()); return p.length > 1 ? { label: p[0], address: p[1] } : { address: p[0] }; }); }
+  let n = 0; for (const w of list) if (w && addWallet(w.address, w.label, true)) n++;
+  toast(n ? "Added " + n + " wallet" + (n > 1 ? "s" : "") : "Nothing new to add");
+};
+$("rpcInput").value = settings.rpc; $("wsInput").value = settings.ws;
+$("commitmentSel").value = settings.commitment; $("backfillSel").value = String(settings.backfill);
+$("saveSettings").onclick = () => {
+  settings.rpc = $("rpcInput").value.trim(); settings.ws = $("wsInput").value.trim();
+  settings.commitment = $("commitmentSel").value; settings.backfill = Number($("backfillSel").value);
+  save("tracker.settings", settings); setRpcPill(); toast("Saved, reconnecting"); connect();
+};
+setInterval(() => render(), 5000);            // keep the "x s ago" times fresh
+setInterval(refreshSolPrice, 60000);
+
+// ---------------------------------------------------------------- start
+if (!load("tracker.wallets", null)) {
+  wallets = [];
+  ["4oEndErG77d2qxbRVXw2ZJD7RhQQyJvXT4x8278Hke8", "HysDuuHvKTnwjkPEZKvJEYWYnpAVPpR8dJL4cxfH3c2P"].forEach(a => wallets.push({ label: "", address: a }));
+  save("tracker.wallets", wallets);
+}
+setRpcPill();
+wallets.forEach(w => { walletState[w.address] = { subId: null, live: false, error: null }; });
+renderWallets(); render();
+connect();
+wallets.forEach(w => backfill(w.address, Number(settings.backfill) || 25).catch(e => { walletState[w.address].error = e.message; renderWallets(); }));
+refreshSolPrice();
+</script>
+</body>
+</html>
