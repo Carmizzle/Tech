@@ -86,10 +86,23 @@
 
       <details id="settingsBox">
         <summary>Connection settings (RPC)</summary>
-        <p class="hint">The free public Solana RPC works but is rate-limited and drops connections. For GMGN-level speed with many
-          wallets, paste a private RPC URL (e.g. a free Helius or QuickNode endpoint). It's stored only in this browser.</p>
-        <input id="rpcInput" class="mono" placeholder="https://api.mainnet-beta.solana.com">
-        <input id="wsInput" class="mono" style="margin-top:6px" placeholder="WebSocket URL (blank = worked out from the RPC URL)">
+        <p class="hint">One RPC URL per line. The first is your main one, the rest are backups: if one runs out of credits,
+          gets rate-limited or goes down, the tracker switches to the next by itself, and goes back to the main one when it
+          recovers. Blank = the free public Solana RPC. Keys are stored only in this browser and are never included in exports.</p>
+        <textarea id="rpcList" rows="3" class="mono" placeholder="https://mainnet.helius-rpc.com/?api-key=MAIN-KEY
+https://mainnet.helius-rpc.com/?api-key=BACKUP-1
+https://mainnet.helius-rpc.com/?api-key=BACKUP-2"></textarea>
+        <div id="rpcStatus" class="hint"></div>
+        <div class="row">
+          <select id="pollSel">
+            <option value="15">safety-net check every 15s</option>
+            <option value="30">safety-net check every 30s</option>
+            <option value="60">safety-net check every 60s</option>
+            <option value="120">safety-net check every 2 min</option>
+            <option value="0">safety-net check off (live feed only)</option>
+          </select>
+        </div>
+        <div id="creditHint" class="hint"></div>
         <div class="row" style="margin-top:6px">
           <select id="commitmentSel">
             <option value="confirmed">confirmed (fast, reliable)</option>
@@ -142,14 +155,16 @@ const STABLES = {
 };
 const ADDR_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const MAX_ROWS = 1000;
-const POLL_MS = 15000;
+
 
 function load(key, fallback) {
   try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
 }
 function save(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} }
 
-const settings = Object.assign({ rpc: "", ws: "", commitment: "confirmed", backfill: 25 }, load("tracker.settings", {}));
+const settings = Object.assign({ rpcs: [], commitment: "confirmed", backfill: 25, pollSec: 30 }, load("tracker.settings", {}));
+if (settings.rpc && !settings.rpcs.length) settings.rpcs = [settings.rpc];   // older single-URL setting
+delete settings.rpc; delete settings.ws;
 let wallets = load("tracker.wallets", null) || [];      // [{label, address}]
 const txs = new Map();                                   // key "sig:wallet" -> row
 const seen = new Set();                                  // same keys, never re-fetched
@@ -162,11 +177,26 @@ const labelOf = addr => (wallets.find(w => w.address === addr) || {}).label || s
 function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 3500); }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-function rpcUrl() { return (settings.rpc || "").trim() || PUBLIC_RPC; }
-function wsUrl() {
-  if ((settings.ws || "").trim()) return settings.ws.trim();
-  return rpcUrl().replace(/^http/, "ws");
+// Main RPC first, then backups. A failing endpoint is benched for a while and the next one takes over;
+// the main one is used again as soon as its bench time is up.
+const bench = {};   // url -> {until, why}
+function endpoints() { const l = (settings.rpcs || []).map(s => s.trim()).filter(Boolean); return l.length ? l : [PUBLIC_RPC]; }
+function activeIdx() {
+  const eps = endpoints(), now = Date.now();
+  const ok = eps.findIndex(u => !bench[u] || bench[u].until <= now);
+  if (ok >= 0) return ok;
+  return eps.reduce((best, u, i) => bench[u].until < bench[eps[best]].until ? i : best, 0);   // all benched: least-bad one
 }
+function benchEndpoint(url, ms, why) {
+  const until = Date.now() + ms;
+  if (bench[url] && bench[url].until > until) return;   // already resting longer (e.g. out of credits)
+  bench[url] = { until, why };
+  setRpcPill(); renderRpcStatus();
+}
+const rpcUrl = () => endpoints()[activeIdx()];
+const toWs = url => url.replace(/^http/, "ws");
+function epName(i) { return endpoints()[0] === PUBLIC_RPC ? "public RPC" : i === 0 ? "main RPC" : "backup " + i; }
+function epHost(url) { try { return new URL(url).host; } catch { return "?"; } }   // never show the key
 
 // ---------------------------------------------------------------- HTTP RPC (rate-limit aware)
 let inFlight = 0, rpcErrors = 0;
@@ -175,29 +205,61 @@ async function rpc(method, params, tries = 5) {
   for (let attempt = 0; attempt < tries; attempt++) {
     while (inFlight >= MAX_IN_FLIGHT) await sleep(50);
     inFlight++;
+    const url = rpcUrl();
     try {
-      const r = await fetch(rpcUrl(), { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
-      if (r.status === 429 || r.status >= 500) throw Object.assign(new Error("RPC busy (" + r.status + ")"), { retry: true });
+      let r;
+      try {
+        r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
+      } catch (e) { benchEndpoint(url, 30000, "unreachable"); throw Object.assign(e, { retry: true }); }
+      if (r.status === 401 || r.status === 402 || r.status === 403) {   // bad key or out of credits: switch for a good while
+        benchEndpoint(url, 10 * 60000, "refused (" + r.status + "): key or credits");
+        throw Object.assign(new Error("RPC refused (" + r.status + ")"), { retry: true });
+      }
+      if (r.status === 429 || r.status >= 500) {
+        const body = await r.text().catch(() => "");
+        const outOfCredits = /credit|quota|usage|exceeded/i.test(body);   // e.g. "max usage reached": rest it much longer
+        benchEndpoint(url, outOfCredits ? 10 * 60000 : r.status === 429 ? 20000 : 30000,
+                      outOfCredits ? "out of credits" : r.status === 429 ? "rate-limited" : "server error " + r.status);
+        throw Object.assign(new Error("RPC busy (" + r.status + ")"), { retry: true });
+      }
       const j = await r.json();
       if (j.error) {
-        if (j.error.code === 429 || /rate|limit/i.test(j.error.message || "")) throw Object.assign(new Error(j.error.message), { retry: true });
-        throw new Error(j.error.message || "RPC error");
+        const msg = j.error.message || "RPC error";
+        if (j.error.code === 429 || j.error.code === -32429 || /rate|limit|credit|quota/i.test(msg)) {
+          benchEndpoint(url, /credit|quota/i.test(msg) ? 10 * 60000 : 20000, msg.slice(0, 60));
+          throw Object.assign(new Error(msg), { retry: true });
+        }
+        throw new Error(msg);
       }
       rpcErrors = 0; setRpcPill();
       return j.result;
     } catch (e) {
       rpcErrors++; setRpcPill(e.message);
-      if (attempt === tries - 1 || (!e.retry && !(e instanceof TypeError))) throw e;
-      await sleep(Math.min(8000, 400 * 2 ** attempt) + Math.random() * 300);
+      if (attempt === tries - 1 || !e.retry) throw e;
+      const switched = rpcUrl() !== url;   // a backup took over: retry straight away
+      await sleep(switched ? 0 : Math.min(8000, 400 * 2 ** attempt) + Math.random() * 300);
     } finally { inFlight--; }
   }
 }
 function setRpcPill(err) {
-  const p = $("rpcPill"), custom = !!(settings.rpc || "").trim();
-  p.textContent = (custom ? "private RPC" : "public RPC") + (rpcErrors > 2 ? " · busy" : "");
-  p.className = "pill " + (rpcErrors > 2 ? "warn" : custom ? "live" : "");
-  p.title = err || "";
+  const p = $("rpcPill"), i = activeIdx(), pub = endpoints()[0] === PUBLIC_RPC;
+  p.textContent = epName(i) + (rpcErrors > 2 ? " · busy" : "");
+  p.className = "pill " + (rpcErrors > 2 || i > 0 ? "warn" : pub ? "" : "live");
+  p.title = epHost(rpcUrl()) + (err ? " · " + err : "");
+}
+function renderRpcStatus() {
+  const eps = endpoints(), act = activeIdx(), now = Date.now();
+  $("rpcStatus").innerHTML = eps.map((u, i) => {
+    const b = bench[u] && bench[u].until > now ? bench[u] : null;
+    const state = i === act ? '<span class="IN">● in use</span>' : b ? '<span class="OUT">resting ' +
+      Math.ceil((b.until - now) / 1000) + "s: " + esc(b.why) + "</span>" : '<span class="muted">standby</span>';
+    return esc(epName(i)) + " · " + esc(epHost(u)) + " · " + state;
+  }).join("<br>");
+  const per = settings.pollSec ? Math.round(wallets.length * 86400 / settings.pollSec) : 0;
+  $("creditHint").textContent = settings.pollSec
+    ? "Safety-net checks: about " + per.toLocaleString() + " requests a day for " + wallets.length + " wallet(s), plus one per transaction. Each request uses RPC credits."
+    : "Safety-net checks are off: only the live feed (plus one request per transaction).";
 }
 
 // Fetch a transaction; right after a live notification the RPC may not have it yet, so retry briefly.
@@ -347,25 +409,26 @@ async function poll(wallet) {
   renderWallets();
 }
 let pollIdx = 0, lastPollAt = 0;
-setInterval(() => {   // one wallet per tick, so each wallet is checked about every POLL_MS without bursts
-  if (!wallets.length) return;
-  if (Date.now() - lastPollAt < Math.max(250, POLL_MS / wallets.length)) return;
+setInterval(() => {   // one wallet per tick, so each wallet is checked about every pollSec without bursts
+  if (!wallets.length || !settings.pollSec) return;
+  if (Date.now() - lastPollAt < Math.max(250, settings.pollSec * 1000 / wallets.length)) return;
   lastPollAt = Date.now();
   poll(wallets[pollIdx++ % wallets.length].address);
 }, 250);
 
 // ---------------------------------------------------------------- live WebSocket feed
-let ws = null, wsBackoff = 1000, reqId = 1;
+let ws = null, wsBackoff = 1000, reqId = 1, wsUrlInUse = null, wsOpenedAt = 0;
 const pendingSubs = {};  // request id -> wallet
 const subToWallet = {};  // subscription id -> wallet
 function connect() {
   try { ws && ws.close(); } catch {}
   setWsPill("connecting…", "");
   let sock;
-  try { sock = new WebSocket(wsUrl()); } catch (e) { setWsPill("bad WebSocket URL", "bad"); return; }
-  ws = sock;
+  const url = rpcUrl();
+  try { sock = new WebSocket(toWs(url)); } catch (e) { benchEndpoint(url, 60000, "bad WebSocket URL"); setTimeout(connect, 1000); return; }
+  ws = sock; wsUrlInUse = url; wsOpenedAt = 0;
   sock.onopen = () => {
-    wsBackoff = 1000; setWsPill("live", "live");
+    wsBackoff = 1000; wsOpenedAt = Date.now(); setWsPill("live · " + epName(activeIdx()), "live");
     for (const k in subToWallet) delete subToWallet[k];
     wallets.forEach(w => subscribe(w.address));
     wallets.forEach(w => poll(w.address));      // catch anything missed while disconnected
@@ -388,9 +451,12 @@ function connect() {
     if (ws !== sock) return;
     Object.values(walletState).forEach(s => { s.live = false; s.subId = null; });
     renderWallets();
-    setWsPill("reconnecting in " + Math.round(wsBackoff / 1000) + "s", "bad");
-    setTimeout(() => { if (ws === sock) connect(); }, wsBackoff);
-    wsBackoff = Math.min(30000, wsBackoff * 2);
+    // Never opened, or dropped within 10s: this endpoint's feed is unhealthy, so let a backup take over.
+    if (!wsOpenedAt || Date.now() - wsOpenedAt < 10000) benchEndpoint(url, 60000, "live feed failed");
+    const next = rpcUrl() !== url ? 500 : wsBackoff;
+    setWsPill("reconnecting in " + Math.max(1, Math.round(next / 1000)) + "s", "bad");
+    setTimeout(() => { if (ws === sock) connect(); }, next);
+    if (next === wsBackoff) wsBackoff = Math.min(30000, wsBackoff * 2);
   };
   sock.onerror = () => {};
 }
@@ -519,6 +585,7 @@ function renderWallets() {
   wf.innerHTML = '<option value="">All wallets</option>' + wallets.map(w =>
     '<option value="' + esc(w.address) + '">' + esc(w.label || short(w.address)) + "</option>").join("");
   wf.value = wallets.some(w => w.address === cur) ? cur : "";
+  renderRpcStatus();
 }
 
 // ---------------------------------------------------------------- sound
@@ -551,15 +618,23 @@ $("importBtn").onclick = () => {
   let n = 0; for (const w of list) if (w && addWallet(w.address, w.label, true)) n++;
   toast(n ? "Added " + n + " wallet" + (n > 1 ? "s" : "") : "Nothing new to add");
 };
-$("rpcInput").value = settings.rpc; $("wsInput").value = settings.ws;
+$("rpcList").value = (settings.rpcs || []).join("\n"); $("pollSel").value = String(settings.pollSec);
 $("commitmentSel").value = settings.commitment; $("backfillSel").value = String(settings.backfill);
 $("saveSettings").onclick = () => {
-  settings.rpc = $("rpcInput").value.trim(); settings.ws = $("wsInput").value.trim();
+  const lines = $("rpcList").value.split(/\s+/).map(s => s.trim()).filter(Boolean);
+  const bad = lines.find(l => !/^https?:\/\//.test(l));
+  if (bad) { toast("Each line must be a full URL starting with https://"); return; }
+  settings.rpcs = lines; settings.pollSec = Number($("pollSel").value);
+  for (const k in bench) delete bench[k];
   settings.commitment = $("commitmentSel").value; settings.backfill = Number($("backfillSel").value);
   save("tracker.settings", settings); setRpcPill(); toast("Saved, reconnecting"); connect();
 };
 setInterval(() => render(), 5000);            // keep the "x s ago" times fresh
 setInterval(refreshSolPrice, 60000);
+setInterval(() => {   // back on the main RPC once it has recovered
+  setRpcPill(); renderRpcStatus();
+  if (ws && ws.readyState === 1 && wsUrlInUse !== rpcUrl() && endpoints().indexOf(rpcUrl()) < endpoints().indexOf(wsUrlInUse)) connect();
+}, 5000);
 
 // ---------------------------------------------------------------- start
 if (!load("tracker.wallets", null)) {
@@ -567,7 +642,7 @@ if (!load("tracker.wallets", null)) {
   ["4oEndErG77d2qxbRVXw2ZJD7RhQQyJvXT4x8278Hke8", "HysDuuHvKTnwjkPEZKvJEYWYnpAVPpR8dJL4cxfH3c2P"].forEach(a => wallets.push({ label: "", address: a }));
   save("tracker.wallets", wallets);
 }
-setRpcPill();
+setRpcPill(); renderRpcStatus();
 wallets.forEach(w => { walletState[w.address] = { subId: null, live: false, error: null }; });
 renderWallets(); render();
 connect();
